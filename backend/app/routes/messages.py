@@ -42,3 +42,10 @@ def send_message(user_id: str, message: MessageCreate, current_user: dict = Depe
 @router.post('/{user_id}/read')
 def mark_messages_read(user_id: str, current_user: dict = Depends(get_current_user)):
     return {'success': MessageService.mark_read(current_user['uid'], user_id)}
+
+
+@router.delete('/{user_id}')
+def delete_conversation(user_id: str, current_user: dict = Depends(get_current_user)):
+    if user_id == current_user['uid']:
+        raise HTTPException(status_code=400, detail='You cannot delete a conversation with yourself')
+    return {'success': MessageService.delete_conversation(current_user['uid'], user_id)}

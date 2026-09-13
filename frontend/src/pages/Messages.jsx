@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MessageCircle, Send, ArrowLeft } from 'lucide-react'
+import { MessageCircle, Send, ArrowLeft, Trash2 } from 'lucide-react'
 import api from '../services/api'
 import MobileHeader from '../components/MobileHeader'
 import UserAvatar from '../components/UserAvatar'
@@ -22,6 +22,7 @@ export default function Messages() {
     const [loading, setLoading] = useState(true)
     const [messagesLoading, setMessagesLoading] = useState(false)
     const [sending, setSending] = useState(false)
+    const [deleting, setDeleting] = useState(false)
 
     const timestampValue = (value) => {
         if (!value) return 0
@@ -133,6 +134,27 @@ export default function Messages() {
         }
     }
 
+    const deleteConversation = async () => {
+        if (!selectedUser || deleting) return
+        const confirmed = window.confirm('Delete this chat for both users? All messages will be permanently removed.')
+        if (!confirmed) return
+
+        setDeleting(true)
+        try {
+            await api.delete(`/messages/${selectedUser.id}`)
+            setConversations((current) => current.filter((conversation) => conversation.participantId !== selectedUser.id))
+            setMessages([])
+            setSelectedUser(null)
+            setSearchParams({})
+            toast.success('Chat deleted for both users.')
+        } catch (error) {
+            console.error('Failed to delete conversation', error)
+            toast.error(error.response?.data?.detail || 'Unable to delete chat.')
+        } finally {
+            setDeleting(false)
+        }
+    }
+
     return (
         <div className="page messages-page">
             <MobileHeader title="Messages" />
@@ -167,6 +189,9 @@ export default function Messages() {
                                 </button>
                                 <UserAvatar src={selectedUser.profileImage} name={selectedUser.fullName} size={38} />
                                 <div><strong>{selectedUser.fullName}</strong><span>@{selectedUser.username}</span></div>
+                                <button className="delete-chat-button" onClick={deleteConversation} disabled={deleting} aria-label="Delete chat" title="Delete chat for both users">
+                                    <Trash2 size={18} />
+                                </button>
                             </header>
                             <div className="chat-messages">
                                 {messagesLoading ? <LoadingSkeleton type="list" count={4} /> : messages.length ? messages.map((message) => (
@@ -196,6 +221,9 @@ export default function Messages() {
         .chat-panel { display: flex; flex-direction: column; min-width: 0; }
         .chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--color-border-light); }
         .chat-header div { display: flex; flex-direction: column; }
+        .delete-chat-button { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+        .delete-chat-button:hover { color: var(--color-danger, #dc2626); background: var(--color-bg-secondary); }
+        .delete-chat-button:disabled { opacity: .5; cursor: not-allowed; }
         .chat-header span { color: var(--color-text-secondary); font-size: 12px; }
         .chat-back { display: none; border: 0; background: none; color: var(--color-text); }
         .chat-messages { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 20px; overflow-y: auto; }

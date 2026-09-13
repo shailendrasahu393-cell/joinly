@@ -99,6 +99,29 @@ class MessageService:
         return True
 
     @staticmethod
+    def delete_conversation(uid: str, other_uid: str):
+        if db is None: return False
+
+        conversation = conversation_id(uid, other_uid)
+        conversation_ref = db.collection('conversations').document(conversation)
+        deleted = False
+
+        message_docs = list(db.collection('messages').where('conversationId', '==', conversation).stream())
+        for start in range(0, len(message_docs), 450):
+            batch = db.batch()
+            for message_doc in message_docs[start:start + 450]:
+                batch.delete(message_doc.reference)
+            batch.commit()
+            deleted = True
+
+        if conversation_ref.get().exists:
+            batch = db.batch()
+            batch.delete(conversation_ref)
+            batch.commit()
+            deleted = True
+        return deleted
+
+    @staticmethod
     def get_unread_count(uid: str):
         if db is None: return 0
         total = 0
