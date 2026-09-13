@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getGoogleAuthErrorMessage, signUp, logInWithGoogle } from '../services/auth'
 import { useToast } from '../context/ToastContext'
-import { Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
 export default function Signup() {
     const [email, setEmail] = useState('')
@@ -54,6 +54,9 @@ export default function Signup() {
     return (
         <div className="auth-page">
             <div className="auth-card">
+                <button className="auth-back" type="button" onClick={() => navigate('/')} aria-label="Back to home" title="Back to home">
+                    <ArrowLeft size={20} />
+                </button>
                 <div className="auth-logo">JOINLY</div>
                 <h1 className="auth-title">Create your account</h1>
                 <p className="auth-subtitle">Join plans around your city</p>
@@ -141,12 +144,36 @@ export default function Signup() {
                 }
 
                 .auth-card {
+                    position: relative;
                     width: 100%;
                     max-width: 400px;
                     background: var(--color-surface);
                     border-radius: var(--radius-xl);
                     padding: 32px 24px;
                     box-shadow: var(--shadow-lg);
+                }
+
+                .auth-back {
+                    position: absolute;
+                    top: 16px;
+                    left: 16px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 40px;
+                    height: 40px;
+                    padding: 0;
+                    border: none;
+                    border-radius: var(--radius-full);
+                    background: transparent;
+                    color: var(--color-text-secondary);
+                    cursor: pointer;
+                    transition: background 0.2s, color 0.2s;
+                }
+
+                .auth-back:hover {
+                    background: var(--color-surface-hover);
+                    color: var(--color-text);
                 }
 
                 .auth-logo {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getGoogleAuthErrorMessage, logIn, logInWithGoogle, resetPassword } from '../services/auth'
 import { useToast } from '../context/ToastContext'
-import { Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
     const [email, setEmail] = useState('')
@@ -71,6 +71,9 @@ export default function Login() {
     return (
         <div className="auth-page">
             <div className="auth-card">
+                <button className="auth-back" type="button" onClick={() => navigate('/')} aria-label="Back to home" title="Back to home">
+                    <ArrowLeft size={20} />
+                </button>
                 <div className="auth-logo">JOINLY</div>
                 <h1 className="auth-title">Welcome back</h1>
                 <p className="auth-subtitle">Log in to continue your plans</p>
@@ -167,6 +170,7 @@ export default function Login() {
         }
 
         .auth-card {
+                    position: relative;
           width: 100%;
           max-width: 400px;
           background: var(--color-surface);
@@ -174,6 +178,29 @@ export default function Login() {
           padding: 32px 24px;
           box-shadow: var(--shadow-lg);
         }
+
+                .auth-back {
+                    position: absolute;
+                    top: 16px;
+                    left: 16px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 40px;
+                    height: 40px;
+                    padding: 0;
+                    border: none;
+                    border-radius: var(--radius-full);
+                    background: transparent;
+                    color: var(--color-text-secondary);
+                    cursor: pointer;
+                    transition: background 0.2s, color 0.2s;
+                }
+
+                .auth-back:hover {
+                    background: var(--color-surface-hover);
+                    color: var(--color-text);
+                }
 
         .auth-logo {
           font-size: 28px;
