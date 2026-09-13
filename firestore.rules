@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isPlanHost(planId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/plans/$(planId)).data.hostId == request.auth.uid;
+    }
+
+    // User profiles: users can manage only their own document.
+    match /users/{userId} {
+      allow read, create, update, delete: if isUser(userId);
+    }
+
+    // Plans are visible to signed-in users. Only the host can create or edit one.
+    match /plans/{planId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && resource.data.hostId == request.auth.uid;
+    }
+
+    // Join requests: requester can create/read their own request;
+    // the plan host can read and update requests for their plan.
+    match /join_requests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.requesterId == request.auth.uid;
+      allow read: if signedIn()
+        && (resource.data.requesterId == request.auth.uid
+          || isPlanHost(resource.data.planId));
+      allow update: if signedIn()
+        && isPlanHost(resource.data.planId);
+      allow delete: if signedIn()
+        && resource.data.requesterId == request.auth.uid;
+    }
+
+    // Notifications belong to one user. Backend/Admin SDK creates them.
+    match /notifications/{notificationId} {
+      allow read, update, delete: if signedIn()
+        && resource.data.userId == request.auth.uid;
+      allow create: if false;
+    }
+
+    // Direct client chat access is limited to conversation participants.
+    match /conversations/{conversationId} {
+      allow read: if signedIn()
+        && resource.data.participants.hasAny([request.auth.uid]);
+      allow write: if false;
+    }
+
+    match /messages/{messageId} {
+      allow read: if signedIn()
+        && get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants.hasAny([request.auth.uid]);
+      allow create: if signedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants.hasAny([request.auth.uid]);
+      allow update, delete: if false;
+    }
+
+    // Reports are written through the backend only.
+    match /reports/{reportId} {
+      allow read, write: if false;
+    }
+
+    // Deny every collection not explicitly listed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
