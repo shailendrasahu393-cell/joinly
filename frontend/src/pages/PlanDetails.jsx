@@ -10,7 +10,7 @@ import EmptyState from '../components/EmptyState'
 import JoinRequestCard from '../components/JoinRequestCard'
 import Modal from '../components/Modal'
 import { getCategoryById, formatDate, formatTime, calculateAge } from '../utils/constants'
-import { MapPin, Clock, Users, Calendar, AlertTriangle, Share2, MoreVertical, X } from 'lucide-react'
+import { MapPin, Clock, Users, Calendar, AlertTriangle, Share2, MoreVertical, ArrowRight } from 'lucide-react'
 
 export default function PlanDetails() {
     const { planId } = useParams()
