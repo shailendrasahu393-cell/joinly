@@ -203,19 +203,17 @@ export default function Messages() {
         .message-bubble.mine { align-self: flex-end; color: white; background: var(--color-primary); border-radius: 16px 16px 4px 16px; }
         .chat-empty, .chat-placeholder { margin: auto; color: var(--color-text-secondary); text-align: center; }
         .chat-placeholder h2 { color: var(--color-text); margin: 10px 0 4px; }
-        .chat-composer { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--color-border-light); }
-        .chat-composer input { flex: 1; min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-full); padding: 12px 16px; outline: none; }
-        .chat-composer button { width: 44px; border: 0; border-radius: 50%; background: var(--color-primary); color: white; cursor: pointer; }
+        .chat-composer { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--color-border-light); background: var(--color-surface); }
+        .chat-composer input { flex: 1; min-width: 0; height: 46px; border: 1px solid var(--color-border); border-radius: var(--radius-full); padding: 12px 16px; outline: none; }
+        .chat-composer button { flex: 0 0 46px; width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--color-primary); color: white; cursor: pointer; }
         .chat-composer button:disabled { opacity: .5; cursor: not-allowed; }
         @media (max-width: 767px) {
           .messages-layout { display: block; min-height: calc(100dvh - 120px); }
           .conversation-panel { border-right: 0; padding: 12px 8px 80px; }
           .conversation-panel.has-selection { display: none; }
           .chat-panel { display: none; min-height: calc(100dvh - 120px); }
-                    .chat-panel.open {
-                        display: flex;
-                        padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-                    }
+          .chat-panel.open { display: flex; padding-bottom: 0; }
+          .chat-composer { padding: 12px 16px 16px; }
           .chat-back { display: inline-flex; align-items: center; justify-content: center; }
         }
       `}</style>

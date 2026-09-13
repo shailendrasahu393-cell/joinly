@@ -8,7 +8,7 @@ import CategoryCard from '../components/CategoryCard'
 import LoadingSkeleton from '../components/LoadingSkeleton'
 import EmptyState from '../components/EmptyState'
 import { CATEGORIES, getGreeting } from '../utils/constants'
-import { Plus, TrendingUp } from 'lucide-react'
+import { Heart, Plus, TrendingUp } from 'lucide-react'
 
 export default function Home() {
     const { userProfile } = useAuth()
@@ -128,7 +128,42 @@ export default function Home() {
                         />
                     )}
                 </section>
+
+                                <footer className="home-footer">
+                                        <span>Built with</span>
+                                        <Heart size={14} fill="currentColor" aria-hidden="true" />
+                                        <span>by</span>
+                                        <a href="https://www.linkedin.com/in/shailendrasahu-/" target="_blank" rel="noreferrer">
+                                                <span>Shailendra Sahu</span>
+                                        </a>
+                                </footer>
             </div>
+
+                        <style>{`
+                .home-footer {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 5px;
+                    margin-top: 40px;
+                    padding: 18px 0 8px;
+                    color: var(--color-text-tertiary);
+                    font-size: 12px;
+                }
+
+                .home-footer > svg { color: var(--color-primary); }
+
+                .home-footer a {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    color: var(--color-primary);
+                    font-weight: 600;
+                    text-decoration: none;
+                }
+
+                .home-footer a:hover { text-decoration: underline; }
+            `}</style>
         </div>
     )
 }

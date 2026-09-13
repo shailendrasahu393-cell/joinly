@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { ArrowRight, Users, MapPin, Shield, Sparkles, CheckCircle } from 'lucide-react'
+import { ArrowRight, Heart, Users, MapPin, Shield, Sparkles, CheckCircle } from 'lucide-react'
 import { CATEGORIES } from '../utils/constants'
 
 export default function Landing() {
@@ -116,7 +116,12 @@ export default function Landing() {
             <footer className="landing-footer">
                 <div className="footer-logo">JOINLY</div>
                 <p>Find people. Join plans. Make memories.</p>
-                <p style={{ fontSize: 12, marginTop: 8 }}>© 2026 JOINLY. All rights reserved.</p>
+              <p className="footer-credit">
+                Built with <Heart size={14} fill="currentColor" aria-hidden="true" /> by{' '}
+                <a href="https://www.linkedin.com/in/shailendrasahu-/" target="_blank" rel="noreferrer">
+                  Shailendra Sahu
+                </a>
+              </p>
             </footer>
 
             <style>{`
@@ -287,6 +292,24 @@ export default function Landing() {
           color: var(--color-primary);
           margin-bottom: 4px;
         }
+
+        .footer-credit {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 8px;
+          font-size: 12px;
+        }
+
+        .footer-credit svg { color: var(--color-primary); }
+
+        .footer-credit a {
+          color: var(--color-primary);
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .footer-credit a:hover { text-decoration: underline; }
 
         @media (min-width: 768px) {
           .hero-title { font-size: 48px; }
