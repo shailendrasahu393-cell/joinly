@@ -7,7 +7,8 @@ import UserAvatar from '../components/UserAvatar'
 import LoadingSkeleton from '../components/LoadingSkeleton'
 import PlanCard from '../components/PlanCard'
 import EmptyState from '../components/EmptyState'
-import { Settings, Share2, MapPin, AlertTriangle, MessageCircle, Grid3X3 } from 'lucide-react'
+import { Settings, Share2, MapPin, AlertTriangle, MessageCircle, Grid3X3, MoreVertical, Ban } from 'lucide-react'
+import Modal from '../components/Modal'
 import { useToast } from '../context/ToastContext'
 
 export default function Profile() {
@@ -19,6 +20,8 @@ export default function Profile() {
     const [profile, setProfile] = useState(null)
     const [plans, setPlans] = useState([])
     const [loading, setLoading] = useState(true)
+    const [showMenu, setShowMenu] = useState(false)
+    const [blocked, setBlocked] = useState(false)
 
     const isOwnProfile = !username || userProfile?.username === username
 
@@ -35,6 +38,8 @@ export default function Profile() {
                 } else {
                     const profileRes = await api.get(`/users/${username}`)
                     setProfile(profileRes.data)
+                    const blockedRes = await api.get('/users/blocked')
+                    setBlocked((blockedRes.data || []).some((user) => user.id === profileRes.data.id))
                     const plansRes = await api.get('/plans', { params: { host_id: profileRes.data.id } })
                     setPlans(plansRes.data || [])
                 }
@@ -65,6 +70,16 @@ export default function Profile() {
         }
     }
 
+    const toggleBlock = async () => {
+        try {
+            if (blocked) await api.delete(`/users/blocked/${profile.id}`)
+            else await api.post(`/users/blocked/${profile.id}`)
+            setBlocked(!blocked)
+            setShowMenu(false)
+            toast.success(blocked ? 'User unblocked.' : 'User blocked.')
+        } catch (error) { toast.error(error.response?.data?.detail || 'Unable to update block status.') }
+    }
+
     if (loading) {
         return (
             <div className="page">
@@ -82,6 +97,17 @@ export default function Profile() {
                 <MobileHeader showBack />
                 <div className="page-content">
                     <EmptyState title="User not found" message="This profile doesn't exist." />
+                </div>
+            </div>
+        )
+    }
+
+    if (profile.blocked) {
+        return (
+            <div className="page">
+                <MobileHeader showBack title="JOINLY_user" showCity={false} />
+                <div className="page-content" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+                    <strong>JOINLY_user</strong>
                 </div>
             </div>
         )
@@ -106,16 +132,9 @@ export default function Profile() {
                             <Settings size={18} />
                         </button>
                     ) : (
-                        <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 10, display: 'flex', gap: 8 }}>
-                            <button onClick={handleShare} className="mh-icon-btn" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-light)' }}>
-                                <Share2 size={18} />
-                            </button>
-                            <button
-                                onClick={() => toast.info('Reporting coming soon.')}
-                                className="mh-icon-btn"
-                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-light)' }}
-                            >
-                                <AlertTriangle size={18} />
+                        <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 10 }}>
+                            <button onClick={() => setShowMenu(true)} className="mh-icon-btn" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-light)' }} aria-label="More profile actions">
+                                <MoreVertical size={18} />
                             </button>
                         </div>
                     )}
@@ -190,6 +209,14 @@ export default function Profile() {
                     )}
                 </section>
             </div>
+
+            <Modal isOpen={showMenu} onClose={() => setShowMenu(false)} title="Profile actions">
+                <div style={{ display: 'grid', gap: 8 }}>
+                    <button className="btn btn-secondary btn-block" onClick={() => { handleShare(); setShowMenu(false) }}><Share2 size={17} /> Share Profile</button>
+                    <button className="btn btn-secondary btn-block" onClick={() => { toast.info('Reporting coming soon.'); setShowMenu(false) }}><AlertTriangle size={17} /> Report User</button>
+                    <button className="btn btn-secondary btn-block" onClick={toggleBlock}><Ban size={17} /> {blocked ? 'Unblock User' : 'Block User'}</button>
+                </div>
+            </Modal>
 
                         <style>{`
                 .profile-page-content { max-width: 720px; }

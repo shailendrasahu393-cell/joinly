@@ -4,6 +4,7 @@ from typing import List, Optional
 from ..services.firebase import db
 from ..schemas.plan import PlanCreate, PlanUpdate
 from ..services.user_service import UserService
+from ..services.notification_service import NotificationService
 
 class PlanService:
     @staticmethod
@@ -30,7 +31,11 @@ class PlanService:
                 .limit(1).stream()
                 
             for req in reqs:
-                plan_data["userRequestStatus"] = req.to_dict().get("status")
+                status = req.to_dict().get("status")
+                plan_data["userRequestStatus"] = {
+                    "accept": "accepted",
+                    "decline": "declined"
+                }.get(status, status)
                 break
                 
         return plan_data
@@ -90,6 +95,7 @@ class PlanService:
         if doc.to_dict().get("hostId") != host_id:
             raise Exception("Unauthorized: Only the host can delete the plan")
 
+        NotificationService.delete_for_plan(plan_id)
         doc_ref.delete()
         return True
 

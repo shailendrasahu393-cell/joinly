@@ -7,6 +7,13 @@ from ..services.notification_service import NotificationService
 
 class JoinRequestService:
     @staticmethod
+    def _normalize_status(status):
+        return {
+            "accept": "accepted",
+            "decline": "declined"
+        }.get(status, status)
+
+    @staticmethod
     def create_request(plan_id: str, requester_id: str):
         if db is None: return None
         
@@ -83,10 +90,11 @@ class JoinRequestService:
             plan_ref.update({"participantCount": plan_data.get('participantCount', 0) + 1})
             
         now = datetime.utcnow()
-        doc_ref.update({"status": action, "updatedAt": now})
+        status = "accepted" if action == "accept" else "declined"
+        doc_ref.update({"status": status, "updatedAt": now})
         
         # Notification to requester
-        status_text = "accepted" if action == "accept" else "declined"
+        status_text = status
         NotificationService.create_notification(
             user_id=req_data['requesterId'],
             notif_type=f"request_{status_text}",
@@ -96,7 +104,7 @@ class JoinRequestService:
             related_user_id=host_id
         )
         
-        return {**req_data, "status": action, "updatedAt": now}
+        return {**req_data, "status": status, "updatedAt": now}
 
     @staticmethod
     def get_plan_requests(plan_id: str, host_id: str):
@@ -112,6 +120,7 @@ class JoinRequestService:
         
         # Enrich
         for r in results:
+            r["status"] = JoinRequestService._normalize_status(r.get("status"))
             u = UserService.get_user(r['requesterId'])
             if u: r['requester'] = u
             
@@ -125,8 +134,13 @@ class JoinRequestService:
         
         # Enrich with minimal plan details
         for r in results:
+            r["status"] = JoinRequestService._normalize_status(r.get("status"))
             p = db.collection('plans').document(r['planId']).get()
-            if p.exists: r['plan'] = p.to_dict()
+            if p.exists:
+                r['plan'] = p.to_dict()
+                host = UserService.get_user(r['plan'].get('hostId'))
+                if host:
+                    r['host'] = host
             
         return results
 
@@ -138,6 +152,7 @@ class JoinRequestService:
         results = [d.to_dict() for d in docs]
 
         for request in results:
+            request["status"] = JoinRequestService._normalize_status(request.get("status"))
             user = UserService.get_user(request.get('requesterId'))
             if user:
                 request['requester'] = user

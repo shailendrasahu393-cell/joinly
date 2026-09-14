@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { MessageCircle, Send, ArrowLeft, Trash2, Check, X, Search } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { MessageCircle, Send, ArrowLeft, Trash2, Check, X, Search, Pin, MoreVertical } from 'lucide-react'
 import api from '../services/api'
 import MobileHeader from '../components/MobileHeader'
 import UserAvatar from '../components/UserAvatar'
@@ -14,6 +14,8 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore'
 export default function Messages() {
     const { currentUser } = useAuth()
     const toast = useToast()
+    const location = useLocation()
+    const navigate = useNavigate()
     const [searchParams, setSearchParams] = useSearchParams()
     const [conversations, setConversations] = useState([])
     const [messages, setMessages] = useState([])
@@ -22,11 +24,15 @@ export default function Messages() {
     const [loading, setLoading] = useState(true)
     const [messagesLoading, setMessagesLoading] = useState(false)
     const [sending, setSending] = useState(false)
-    const [deleting, setDeleting] = useState(false)
     const [messageAccess, setMessageAccess] = useState({ status: 'none' })
     const [contactSearch, setContactSearch] = useState('')
     const [contactResults, setContactResults] = useState([])
     const [contactSearchLoading, setContactSearchLoading] = useState(false)
+    const [deleteRequests, setDeleteRequests] = useState([])
+    const [menuConversation, setMenuConversation] = useState(null)
+    const blockedUserIdsRef = useRef([])
+    const longPressTimer = useRef(null)
+    const longPressTriggered = useRef(false)
 
     const timestampValue = (value) => {
         if (!value) return 0
@@ -35,23 +41,73 @@ export default function Messages() {
     }
 
     useEffect(() => {
+        const viewport = window.visualViewport
+        const updateViewportHeight = () => {
+            const height = viewport?.height || window.innerHeight
+            document.documentElement.style.setProperty('--joinly-viewport-height', `${height}px`)
+        }
+        updateViewportHeight()
+        viewport?.addEventListener('resize', updateViewportHeight)
+        window.addEventListener('resize', updateViewportHeight)
+        return () => {
+            viewport?.removeEventListener('resize', updateViewportHeight)
+            window.removeEventListener('resize', updateViewportHeight)
+        }
+    }, [])
+
+    useEffect(() => {
+        const closeMenusOnOutsidePress = (event) => {
+            if (!event.target.closest('.conversation-menu, .chat-header-menu, .conversation-item, .delete-chat-button')) {
+                setMenuConversation(null)
+            }
+        }
+
+        document.addEventListener('pointerdown', closeMenusOnOutsidePress)
+        return () => document.removeEventListener('pointerdown', closeMenusOnOutsidePress)
+    }, [])
+
+    useEffect(() => {
         const loadConversations = async () => {
+            const requestedUserId = searchParams.get('user')
+            try {
+                const blockedResponse = await api.get('/users/blocked')
+                blockedUserIdsRef.current = (blockedResponse.data || []).map((user) => user.id)
+            } catch (error) {
+                console.warn('Unable to load blocked users for chat filtering', error)
+            }
             try {
                 const response = await api.get('/messages')
                 const items = response.data || []
                 setConversations(items)
-                const requestedUserId = searchParams.get('user')
                 const requested = items.find((item) => item.participantId === requestedUserId)
                 if (requested) {
                     setSelectedUser(requested.participant)
-                } else if (requestedUserId) {
-                    const profileResponse = await api.get(`/users/id/${requestedUserId}`)
-                    setSelectedUser(profileResponse.data)
+                    setMessageAccess({ status: 'accepted' })
                 }
             } catch (error) {
                 console.error('Failed to load conversations', error)
             } finally {
                 setLoading(false)
+            }
+            try {
+                const response = await api.get('/messages/delete-requests')
+                setDeleteRequests(response.data || [])
+            } catch (error) {
+                console.error('Failed to load chat delete requests', error)
+            }
+
+            if (requestedUserId) {
+                try {
+                    const profileResponse = await api.get(`/users/id/${requestedUserId}`)
+                    setSelectedUser((current) => current || profileResponse.data)
+                } catch (error) {
+                    const fallbackUser = location.state?.notificationUser
+                    if (fallbackUser?.id === requestedUserId) {
+                        setSelectedUser((current) => current || fallbackUser)
+                    } else {
+                        console.error('Failed to load notification user', error)
+                    }
+                }
             }
         }
         loadConversations()
@@ -61,11 +117,12 @@ export default function Messages() {
             collection(db, 'conversations'),
             where('participants', 'array-contains', currentUser.uid),
         )
-        return onSnapshot(conversationsQuery, (snapshot) => {
+        const unsubscribeConversations = onSnapshot(conversationsQuery, (snapshot) => {
             setConversations((current) => snapshot.docs.map((doc) => {
                 const data = doc.data()
                 const participantId = data.participants?.find((id) => id !== currentUser.uid)
                 const existing = current.find((item) => item.participantId === participantId)
+                if (blockedUserIdsRef.current.includes(participantId)) return null
                 return {
                     id: doc.id,
                     participantId,
@@ -73,9 +130,20 @@ export default function Messages() {
                     lastMessage: data.lastMessage,
                     lastMessageAt: data.lastMessageAt,
                     unreadCount: data.unreadCounts?.[currentUser.uid] || 0,
+                    pinned: existing?.pinned || false,
                 }
-            }).sort((first, second) => timestampValue(second.lastMessageAt) - timestampValue(first.lastMessageAt)))
+            }).filter(Boolean).sort((first, second) => timestampValue(second.lastMessageAt) - timestampValue(first.lastMessageAt)))
         }, (error) => console.error('Conversation realtime listener failed', error))
+        const blockedQuery = query(collection(db, 'blocked_users'), where('blockerId', '==', currentUser.uid))
+        const unsubscribeBlocks = onSnapshot(blockedQuery, (snapshot) => {
+            const nextIds = snapshot.docs.map((doc) => doc.data().blockedId)
+            blockedUserIdsRef.current = nextIds
+            setConversations((current) => current.filter((conversation) => !nextIds.includes(conversation.participantId)))
+        }, (error) => console.warn('Blocked users realtime listener unavailable; API fallback remains active', error))
+        return () => {
+            unsubscribeConversations()
+            unsubscribeBlocks()
+        }
     }, [searchParams, currentUser])
 
     useEffect(() => {
@@ -111,7 +179,9 @@ export default function Messages() {
                     setMessages([])
                     return
                 }
+                api.post(`/messages/${selectedUser.id}/read`).catch(() => {})
                 const response = await api.get(`/messages/${selectedUser.id}`)
+                setMessageAccess((current) => ({ ...current, status: 'accepted' }))
                 setMessages(response.data || [])
             } catch (error) {
                 console.error('Failed to load messages', error)
@@ -121,10 +191,6 @@ export default function Messages() {
             }
         }
         loadMessages()
-        if (messageAccess.status === 'accepted') {
-            api.post(`/messages/${selectedUser.id}/read`).catch(() => {})
-        }
-
         if (!firebaseConfigured || !db || !currentUser) return undefined
 
         const conversation = [currentUser.uid, selectedUser.id].sort().join('_')
@@ -136,19 +202,93 @@ export default function Messages() {
             const liveMessages = snapshot.docs
                 .map((doc) => ({ id: doc.id, ...doc.data() }))
                 .sort((first, second) => timestampValue(first.createdAt) - timestampValue(second.createdAt))
+            if (liveMessages.length > 0) {
+                setMessageAccess((current) => current.status === 'accepted' ? current : { ...current, status: 'accepted' })
+            }
             setMessages(liveMessages.slice(-100))
             setMessagesLoading(false)
         }, (error) => console.error('Message realtime listener failed', error))
     }, [selectedUser, currentUser])
 
     const selectConversation = (conversation) => {
+        if (longPressTriggered.current) {
+            longPressTriggered.current = false
+            return
+        }
         setSelectedUser(conversation.participant)
+        setMessageAccess({ status: 'accepted' })
         setConversations((current) => current.map((item) => (
             item.participantId === conversation.participantId
                 ? { ...item, unreadCount: 0 }
                 : item
         )))
         setSearchParams({ user: conversation.participantId })
+        setMenuConversation(null)
+    }
+
+    const startLongPress = (conversation) => {
+        longPressTriggered.current = false
+        longPressTimer.current = window.setTimeout(() => {
+            longPressTriggered.current = true
+            setMenuConversation(conversation.participantId)
+        }, 550)
+    }
+
+    const cancelLongPress = () => {
+        if (longPressTimer.current) window.clearTimeout(longPressTimer.current)
+    }
+
+    const deleteForMe = async (participantId) => {
+        try {
+            await api.delete(`/messages/${participantId}/for-me`)
+            setConversations((current) => current.filter((item) => item.participantId !== participantId))
+            if (selectedUser?.id === participantId) {
+                setSelectedUser(null)
+                setSearchParams({})
+            }
+            toast.success('Chat deleted for you.')
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Unable to delete chat.')
+        }
+        setMenuConversation(null)
+    }
+
+    const requestDeleteForEveryone = async (participantId) => {
+        try {
+            await api.post(`/messages/${participantId}/delete-request`)
+            toast.success('Delete request sent.')
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Unable to send delete request.')
+        }
+        setMenuConversation(null)
+    }
+
+    const togglePin = async (conversation) => {
+        try {
+            await api.patch(`/messages/${conversation.participantId}/pin`, { pinned: !conversation.pinned })
+            setConversations((current) => current.map((item) => item.participantId === conversation.participantId ? { ...item, pinned: !conversation.pinned } : item).sort((first, second) => Number(second.pinned) - Number(first.pinned)))
+        } catch {
+            toast.error('Unable to update chat pin.')
+        }
+        setMenuConversation(null)
+    }
+
+    const handleDeleteRequest = async (requestId, action) => {
+        try {
+            await api.patch(`/messages/delete-request/${requestId}`, { action })
+            setDeleteRequests((current) => current.filter((request) => request.id !== requestId))
+            if (action === 'accept') {
+                setMessages([])
+                setConversations((current) => current.filter((conversation) => conversation.participantId !== selectedUser?.id))
+                setSelectedUser(null)
+                setSearchParams({})
+                toast.success('Chat deleted for everyone.')
+            } else {
+                toast.info('Delete request declined.')
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Unable to update delete request.')
+        }
     }
 
     const sendMessage = async (event) => {
@@ -210,36 +350,13 @@ export default function Messages() {
         }
     }
 
-    const deleteConversation = async () => {
-        if (!selectedUser || deleting) return
-        const confirmed = window.confirm('Delete this chat for both users? All messages will be permanently removed.')
-        if (!confirmed) return
-
-        setDeleting(true)
-        try {
-            await api.delete(`/messages/${selectedUser.id}`)
-            setConversations((current) => current.filter((conversation) => conversation.participantId !== selectedUser.id))
-            setMessages([])
-            setSelectedUser(null)
-            setSearchParams({})
-            toast.success('Chat deleted for both users.')
-        } catch (error) {
-            console.error('Failed to delete conversation', error)
-            toast.error(error.response?.data?.detail || 'Unable to delete chat.')
-        } finally {
-            setDeleting(false)
-        }
-    }
+    const chatIsAccepted = messageAccess.status === 'accepted' || messages.length > 0
 
     return (
         <div className="page messages-page">
             <MobileHeader title="Messages" />
             <div className="messages-layout">
                 <aside className={`conversation-panel ${selectedUser ? 'has-selection' : ''}`}>
-                    <div className="messages-heading">
-                        <h1>Messages</h1>
-                        <MessageCircle size={20} />
-                    </div>
                     <div className="contact-search">
                         <Search size={16} />
                         <input
@@ -264,19 +381,31 @@ export default function Messages() {
                         </div>
                     )}
                     {loading ? <LoadingSkeleton type="list" count={4} /> : conversations.length ? conversations.map((conversation) => (
-                        <button
-                            key={conversation.id}
-                            className={`conversation-item ${selectedUser?.id === conversation.participantId ? 'active' : ''}`}
-                            onClick={() => selectConversation(conversation)}
-                        >
-                            <UserAvatar src={conversation.participant?.profileImage} name={conversation.participant?.fullName} size={44} />
-                            <span className="conversation-copy">
-                                <strong>{conversation.participant?.fullName || 'JOINLY user'}</strong>
-                                <small>@{conversation.participant?.username || 'user'}</small>
-                                {conversation.unreadCount > 0 && <span className="new-message-label">New message</span>}
-                            </span>
-                            {conversation.unreadCount > 0 && <span className="conversation-unread-dot" aria-label="Unread message" />}
-                        </button>
+                        <div key={conversation.id} className="conversation-wrapper">
+                            <button
+                                className={`conversation-item ${selectedUser?.id === conversation.participantId ? 'active' : ''}`}
+                                onClick={() => selectConversation(conversation)}
+                                onContextMenu={(event) => { event.preventDefault(); setMenuConversation(conversation.participantId) }}
+                                onPointerDown={() => startLongPress(conversation)}
+                                onPointerUp={cancelLongPress}
+                                onPointerCancel={cancelLongPress}
+                                onPointerLeave={cancelLongPress}
+                            >
+                                <UserAvatar src={conversation.participant?.profileImage} name={conversation.participant?.fullName} size={44} />
+                                <span className="conversation-copy">
+                                    <strong>{conversation.participant?.fullName || 'JOINLY user'}</strong>
+                                    <small>@{conversation.participant?.username || 'user'}</small>
+                                    {conversation.unreadCount > 0 && <span className="new-message-label">New message</span>}
+                                </span>
+                                {conversation.pinned && <Pin size={14} className="conversation-pin" />}
+                                {conversation.unreadCount > 0 && <span className="conversation-unread-dot" aria-label="Unread message" />}
+                            </button>
+                            {menuConversation === conversation.participantId && <div className="conversation-menu">
+                                <button onClick={() => deleteForMe(conversation.participantId)}><Trash2 size={15} /> Delete Chat for Me</button>
+                                <button onClick={() => requestDeleteForEveryone(conversation.participantId)}><Trash2 size={15} /> Delete Chat for Everyone</button>
+                                <button onClick={() => togglePin(conversation)}><Pin size={15} /> {conversation.pinned ? 'Unpin Chat' : 'Pin Chat'}</button>
+                            </div>}
+                        </div>
                     )) : <EmptyState icon={MessageCircle} title="No conversations yet" message="Find someone in Discover and start a conversation." />}
                 </aside>
 
@@ -287,13 +416,27 @@ export default function Messages() {
                                 <button className="chat-back" onClick={() => { setSelectedUser(null); setSearchParams({}) }} aria-label="Back to conversations">
                                     <ArrowLeft size={20} />
                                 </button>
-                                <UserAvatar src={selectedUser.profileImage} name={selectedUser.fullName} size={38} />
-                                <div><strong>{selectedUser.fullName}</strong><span>@{selectedUser.username}</span></div>
-                                <button className="delete-chat-button" onClick={deleteConversation} disabled={deleting} aria-label="Delete chat" title="Delete chat for both users">
-                                    <Trash2 size={18} />
+                                <button className="chat-user-link" onClick={() => selectedUser.username && !selectedUser.blocked && navigate(`/profile/${selectedUser.username}`)} disabled={!selectedUser.username || selectedUser.blocked}>
+                                    <UserAvatar src={selectedUser.profileImage} name={selectedUser.fullName} size={38} />
+                                    <span><strong>{selectedUser.fullName}</strong><small>@{selectedUser.username}</small></span>
                                 </button>
+                                <button className="delete-chat-button" onClick={() => setMenuConversation((current) => current === selectedUser.id ? null : selectedUser.id)} aria-label="Chat options" title="Chat options">
+                                    <MoreVertical size={20} />
+                                </button>
+                                {menuConversation === selectedUser.id && <div className="chat-header-menu">
+                                    <button onClick={() => deleteForMe(selectedUser.id)}><Trash2 size={15} /> Delete Chat for Me</button>
+                                    <button onClick={() => requestDeleteForEveryone(selectedUser.id)}><Trash2 size={15} /> Delete Chat for Everyone</button>
+                                    <button onClick={() => togglePin(conversations.find((item) => item.participantId === selectedUser.id) || { participantId: selectedUser.id, pinned: false })}><Pin size={15} /> {conversations.find((item) => item.participantId === selectedUser.id)?.pinned ? 'Unpin Chat' : 'Pin Chat'}</button>
+                                </div>}
                             </header>
-                            {messageAccess.status === 'accepted' ? (
+                            {selectedUser && deleteRequests.some((request) => request.requesterId === selectedUser.id) ? (
+                                (() => {
+                                    const request = deleteRequests.find((item) => item.requesterId === selectedUser.id)
+                                    return <div className="message-request-panel"><Trash2 size={32} /><h2>Delete chat for everyone?</h2><p>{selectedUser.fullName} requested to delete this chat for both users.</p><div className="message-request-actions"><button className="btn btn-primary btn-sm" onClick={() => handleDeleteRequest(request.id, 'accept')}><Check size={16} /> Accept</button><button className="btn btn-secondary btn-sm" onClick={() => handleDeleteRequest(request.id, 'decline')}><X size={16} /> Decline</button></div></div>
+                                })()
+                            ) : messageAccess.status === 'blocked' ? (
+                                <div className="message-request-panel"><h2>JOINLY_user</h2></div>
+                            ) : chatIsAccepted ? (
                                 <>
                                     <div className="chat-messages">
                                         {messagesLoading ? <LoadingSkeleton type="list" count={4} /> : messages.length ? messages.map((message) => (
@@ -346,8 +489,6 @@ export default function Messages() {
             <style>{`
         .messages-layout { max-width: 1100px; min-height: calc(100dvh - 56px); margin: 0 auto; display: grid; grid-template-columns: 320px 1fr; background: var(--color-surface); }
         .conversation-panel { border-right: 1px solid var(--color-border-light); padding: 20px 12px; overflow-y: auto; }
-        .messages-heading { display: flex; justify-content: space-between; align-items: center; padding: 0 10px 16px; color: var(--color-primary); }
-        .messages-heading h1 { margin: 0; color: var(--color-text); font-size: 22px; }
         .contact-search { display: flex; align-items: center; gap: 8px; margin: 0 4px 12px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-full); color: var(--color-text-tertiary); }
         .contact-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--color-text); font-size: 13px; }
         .contact-results { display: flex; flex-direction: column; gap: 4px; margin: 0 4px 12px; }
@@ -357,20 +498,31 @@ export default function Messages() {
         .search-status { padding: 8px; }
         .conversation-item { width: 100%; display: flex; gap: 10px; padding: 12px 10px; border: 0; border-radius: var(--radius-md); background: none; text-align: left; cursor: pointer; }
         .conversation-item:hover, .conversation-item.active { background: var(--color-bg-secondary); }
+        .conversation-wrapper { position: relative; }
+        .conversation-menu { position: absolute; top: 8px; right: 8px; z-index: 10; display: grid; min-width: 190px; padding: 6px; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: 0 8px 24px rgba(0,0,0,.14); }
+        .conversation-menu button { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+        .conversation-menu button:hover { background: var(--color-bg-secondary); }
+        .conversation-pin { flex: 0 0 auto; color: var(--color-primary); }
         .conversation-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
         .conversation-copy strong { color: var(--color-text); font-size: 14px; }
         .conversation-copy small, .conversation-copy span { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .conversation-copy .new-message-label { color: var(--color-primary); font-weight: 700; }
         .conversation-unread-dot { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--color-danger); }
-        .chat-panel { display: flex; flex-direction: column; min-width: 0; }
-        .chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--color-border-light); }
+        .chat-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+        .chat-header { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--color-border-light); background: var(--color-surface); z-index: 5; }
         .chat-header div { display: flex; flex-direction: column; }
+        .chat-user-link { display: inline-flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+        .chat-user-link:disabled { cursor: default; }
+        .chat-user-link span { display: flex; flex-direction: column; min-width: 0; }
         .delete-chat-button { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
         .delete-chat-button:hover { color: var(--color-danger, #dc2626); background: var(--color-bg-secondary); }
         .delete-chat-button:disabled { opacity: .5; cursor: not-allowed; }
+        .chat-header-menu { position: absolute; top: calc(100% - 4px); right: 16px; z-index: 20; display: grid; min-width: 210px; padding: 6px; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: 0 8px 24px rgba(0,0,0,.14); }
+        .chat-header-menu button { display: flex; align-items: center; gap: 8px; padding: 10px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+        .chat-header-menu button:hover { background: var(--color-bg-secondary); }
         .chat-header span { color: var(--color-text-secondary); font-size: 12px; }
         .chat-back { display: none; border: 0; background: none; color: var(--color-text); }
-        .chat-messages { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 20px; overflow-y: auto; }
+        .chat-messages { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 20px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
         .message-bubble { max-width: 70%; align-self: flex-start; padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: var(--color-bg-secondary); color: var(--color-text); font-size: 14px; }
         .message-bubble.mine { align-self: flex-end; color: white; background: var(--color-primary); border-radius: 16px 16px 4px 16px; }
         .chat-empty, .chat-placeholder { margin: auto; color: var(--color-text-secondary); text-align: center; }
@@ -379,17 +531,21 @@ export default function Messages() {
         .message-request-panel h2 { margin: 12px 0 4px; color: var(--color-text); font-size: 18px; }
         .message-request-panel p { margin: 0 0 16px; font-size: 14px; }
         .message-request-actions { display: flex; justify-content: center; gap: 8px; }
-        .chat-composer { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--color-border-light); background: var(--color-surface); }
+        .chat-composer { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 14px 20px; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--color-border-light); background: var(--color-surface); }
         .chat-composer input { flex: 1; min-width: 0; height: 46px; border: 1px solid var(--color-border); border-radius: var(--radius-full); padding: 12px 16px; outline: none; }
         .chat-composer button { flex: 0 0 46px; width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--color-primary); color: white; cursor: pointer; }
         .chat-composer button:disabled { opacity: .5; cursor: not-allowed; }
         @media (max-width: 767px) {
-          .messages-layout { display: block; min-height: calc(100dvh - 120px); }
-          .conversation-panel { border-right: 0; padding: 12px 8px 80px; }
+                      .messages-page { height: var(--joinly-viewport-height, 100dvh); min-height: var(--joinly-viewport-height, 100dvh); overflow: hidden; overscroll-behavior: none; }
+                      .messages-layout { display: block; height: calc(var(--joinly-viewport-height, 100dvh) - 56px); min-height: 0; overflow: hidden; }
+          .conversation-panel { border-right: 0; padding: 12px 12px 80px; }
+          .contact-search { margin: 0 0 12px; }
           .conversation-panel.has-selection { display: none; }
-          .chat-panel { display: none; min-height: calc(100dvh - 120px); }
-          .chat-panel.open { display: flex; padding-bottom: 0; }
-          .chat-composer { padding: 12px 16px 16px; }
+                    .chat-panel { display: none; height: 100%; min-height: 0; }
+                    .chat-panel.open { display: flex; padding-bottom: 0; }
+                    .chat-header { padding: 10px 12px; min-height: 58px; }
+                    .chat-messages { padding: 14px 12px; }
+                    .chat-composer { padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
           .chat-back { display: inline-flex; align-items: center; justify-content: center; }
         }
       `}</style>

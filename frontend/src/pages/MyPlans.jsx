@@ -15,7 +15,8 @@ export default function MyPlans() {
     const [data, setData] = useState({
         joined: [],
         created: [],
-        requests: []
+        incomingRequests: [],
+        sentRequests: []
     })
 
     const handleDeletePlan = async (plan) => {
@@ -36,10 +37,11 @@ export default function MyPlans() {
     const handleRequestAction = async (requestId, action) => {
         try {
             await api.patch(`/join-requests/${requestId}`, { action })
+            const status = action === 'accept' ? 'accepted' : 'declined'
             setData((current) => ({
                 ...current,
-                requests: current.requests.map((request) => (
-                    request.id === requestId ? { ...request, status: action } : request
+                incomingRequests: current.incomingRequests.map((request) => (
+                    request.id === requestId ? { ...request, status } : request
                 ))
             }))
         } catch (err) {
@@ -52,16 +54,18 @@ export default function MyPlans() {
         const loadMyActivity = async () => {
             setLoading(true)
             try {
-                const [joinedRes, createdRes, reqsRes] = await Promise.all([
+                const [joinedRes, createdRes, incomingRes, sentRes] = await Promise.all([
                     api.get('/join-requests/my-plans?type=joined'),
                     api.get('/join-requests/my-plans?type=created'),
-                    api.get('/join-requests/incoming')
+                    api.get('/join-requests/incoming'),
+                    api.get('/join-requests/me')
                 ])
 
                 setData({
                     joined: joinedRes.data || [],
                     created: createdRes.data || [],
-                    requests: reqsRes.data || []
+                    incomingRequests: incomingRes.data || [],
+                    sentRequests: sentRes.data || []
                 })
             } catch (err) {
                 console.error('Failed to load activity', err)
@@ -95,8 +99,8 @@ export default function MyPlans() {
                     className={`tab ${activeTab === 'requests' ? 'active' : ''}`}
                     onClick={() => setActiveTab('requests')}
                 >
-                    Requests {data.requests.filter(r => r.status === 'pending').length > 0 &&
-                        <span className="badge" style={{ marginLeft: 6 }}>{data.requests.filter(r => r.status === 'pending').length}</span>
+                    Requests {[...data.incomingRequests, ...data.sentRequests].filter(r => r.status === 'pending').length > 0 &&
+                        <span className="badge" style={{ marginLeft: 6 }}>{[...data.incomingRequests, ...data.sentRequests].filter(r => r.status === 'pending').length}</span>
                     }
                 </button>
             </div>
@@ -135,26 +139,48 @@ export default function MyPlans() {
                         />
                     )
                 ) : activeTab === 'requests' ? (
-                    data.requests.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            {data.requests.map((req) => (
-                                <div key={req.id}>
-                                    <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                                        {req.plan?.title || 'Your plan'}
+                    data.incomingRequests.length > 0 || data.sentRequests.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                            {data.incomingRequests.length > 0 && (
+                                <section>
+                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Requests to join your plans</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                        {data.incomingRequests.map((req) => (
+                                            <div key={req.id}>
+                                                <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                    {req.plan?.title || 'Your plan'}
+                                                </div>
+                                                <JoinRequestCard
+                                                    request={req}
+                                                    onAccept={(id) => handleRequestAction(id, 'accept')}
+                                                    onDecline={(id) => handleRequestAction(id, 'decline')}
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                    <JoinRequestCard
-                                        request={req}
-                                        onAccept={(id) => handleRequestAction(id, 'accept')}
-                                        onDecline={(id) => handleRequestAction(id, 'decline')}
-                                    />
-                                </div>
-                            ))}
+                                </section>
+                            )}
+                            {data.sentRequests.length > 0 && (
+                                <section>
+                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Requests you sent</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                        {data.sentRequests.map((req) => (
+                                            <div key={req.id}>
+                                                <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                    {req.plan?.title || 'Plan'}
+                                                </div>
+                                                <JoinRequestCard request={req} showActions={false} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     ) : (
                         <EmptyState
                             icon={Inbox}
-                            title="No requests sent"
-                            message="You haven't sent any join requests yet."
+                            title="No join requests"
+                            message="Requests you send and requests for your plans will appear here."
                         />
                     )
                 ) : null}

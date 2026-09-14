@@ -34,7 +34,12 @@ export default function useUnreadMessages() {
                 }
                 previousCount.current = count
                 setUnreadCount(count)
-            }, (error) => console.error('Unread message listener failed', error))
+            }, (error) => {
+                console.warn('Unread message listener unavailable; using API fallback', error)
+                api.get('/messages/unread-count')
+                    .then((response) => setUnreadCount(response.data?.count || 0))
+                    .catch(() => setUnreadCount(0))
+            })
         }
 
         api.get('/messages/unread-count')

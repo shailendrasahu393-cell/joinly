@@ -2,6 +2,9 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    updatePassword,
     GoogleAuthProvider,
     signInWithPopup,
     signInWithRedirect,
@@ -25,6 +28,15 @@ export const logIn = (email, password) =>
 
 export const resetPassword = (email) =>
     sendPasswordResetEmail(requireFirebase(), email)
+
+export const changePassword = async (currentPassword, newPassword) => {
+    const firebaseAuth = requireFirebase()
+    const user = firebaseAuth.currentUser
+    if (!user?.email) throw new Error('No signed-in email account found.')
+    const credential = EmailAuthProvider.credential(user.email, currentPassword)
+    await reauthenticateWithCredential(user, credential)
+    return updatePassword(user, newPassword)
+}
 
 const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })

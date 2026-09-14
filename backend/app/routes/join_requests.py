@@ -41,7 +41,7 @@ def get_my_plans_temp(type: str = "joined", current_user: dict = Depends(get_cur
             data.get("planId")
             for doc in docs
             for data in [doc.to_dict()]
-            if data.get("status") == "accepted"
+            if data.get("status") in ["accepted", "accept"]
         ]
         if not plan_ids: return []
         

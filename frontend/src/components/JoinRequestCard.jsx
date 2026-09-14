@@ -2,7 +2,7 @@ import UserAvatar from './UserAvatar'
 import { Check, X } from 'lucide-react'
 
 export default function JoinRequestCard({ request, onAccept, onDecline, showActions = true }) {
-    const user = request.requester || {}
+    const user = request.requester || request.host || request.plan?.host || {}
 
     return (
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -21,6 +21,7 @@ import EditProfile from './pages/EditProfile'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import Messages from './pages/Messages'
+import BlockedUsers from './pages/BlockedUsers'
 
 export default function App() {
     const { currentUser } = useAuth()
@@ -65,6 +66,7 @@ export default function App() {
                 <Route path="/profile/:username" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/blocked-users" element={<ProtectedRoute><BlockedUsers /></ProtectedRoute>} />
 
                 {/* Fallback */}
                 <Route path="*" element={<Landing />} />

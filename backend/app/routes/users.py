@@ -17,11 +17,28 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
 def search_users(username: str, current_user: dict = Depends(get_current_user)):
     return UserService.search_users(username, current_user["uid"])
 
+@router.get("/blocked")
+def get_blocked_users(current_user: dict = Depends(get_current_user)):
+    return UserService.get_blocked_users(current_user["uid"])
+
+@router.post("/blocked/{user_id}")
+def block_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        return UserService.block_user(current_user["uid"], user_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+@router.delete("/blocked/{user_id}")
+def unblock_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    return {"success": UserService.unblock_user(current_user["uid"], user_id)}
+
 @router.get("/id/{user_id}")
 def get_user_by_id(user_id: str, current_user: dict = Depends(get_current_user)):
     user = UserService.get_user(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if UserService.is_blocked_by(user_id, current_user["uid"]):
+        return {"id": user_id, "username": "JOINLY_user", "fullName": "JOINLY_user", "blocked": True}
     user.pop("email", None)
     return user
 
@@ -41,10 +58,13 @@ def update_my_profile(user_update: UserUpdate, current_user: dict = Depends(get_
     return updated
 
 @router.get("/{username}")
-def get_user_profile(username: str):
+def get_user_profile(username: str, current_user: dict = Depends(get_current_user)):
     user = UserService.get_user_by_username(username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if UserService.is_blocked_by(user.get("id"), current_user["uid"]):
+        return {"id": user.get("id"), "username": "JOINLY_user", "fullName": "JOINLY_user", "blocked": True}
     
     # Strip private info from public profile
     user.pop("email", None)

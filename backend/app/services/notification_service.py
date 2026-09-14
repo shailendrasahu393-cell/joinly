@@ -30,7 +30,27 @@ class NotificationService:
             .where('userId', '==', user_id) \
             .stream()
             
-        results = [d.to_dict() for d in docs]
+        results = []
+        for doc in docs:
+            notification = doc.to_dict()
+            related_user_id = notification.get('relatedUserId')
+            related_plan_id = notification.get('relatedPlanId')
+
+            if related_user_id and not db.collection('users').document(related_user_id).get().exists:
+                doc.reference.delete()
+                continue
+            if related_plan_id and not db.collection('plans').document(related_plan_id).get().exists:
+                doc.reference.delete()
+                continue
+            if related_user_id and notification.get('type', '').startswith('message_request'):
+                from ..services.message_service import MessageService
+                access = MessageService.get_message_access(user_id, related_user_id)
+                if access.get('status') == 'none':
+                    doc.reference.delete()
+                    continue
+
+            results.append(notification)
+
         results.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
         
         # Enrich with user image
@@ -48,19 +68,29 @@ class NotificationService:
         doc = doc_ref.get()
         if not doc.exists or doc.to_dict().get('userId') != user_id:
             return False
-        notification = doc.to_dict()
-        if notification.get('type') == 'message_request':
-            request_id = notification.get('relatedUserId')
-            if request_id:
-                from ..services.message_service import MessageService, conversation_id
-                access = MessageService.get_message_access(user_id, request_id)
-                if access.get('status') == 'pending':
-                    return True
         doc_ref.update({"read": True})
         return True
 
     @staticmethod
     def get_unread_count(user_id: str):
-        if db is None: return 0
-        docs = db.collection('notifications').where('userId', '==', user_id).stream()
-        return sum(1 for doc in docs if not doc.to_dict().get('read', False))
+        return sum(
+            1 for notification in NotificationService.get_user_notifications(user_id)
+            if not notification.get('read', False)
+        )
+
+    @staticmethod
+    def delete_for_plan(plan_id: str):
+        if db is None: return
+
+        references = []
+        for collection_name, field_name in [('join_requests', 'planId'), ('notifications', 'relatedPlanId')]:
+            references.extend(
+                doc.reference
+                for doc in db.collection(collection_name).where(field_name, '==', plan_id).stream()
+            )
+
+        for start in range(0, len(references), 450):
+            batch = db.batch()
+            for reference in references[start:start + 450]:
+                batch.delete(reference)
+            batch.commit()

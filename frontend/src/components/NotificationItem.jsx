@@ -8,8 +8,16 @@ export default function NotificationItem({ notification, onClick }) {
 
     const handleClick = () => {
         onClick?.(notification.id)
-        if (notification.type?.startsWith('message_request') && notification.relatedUserId) {
-            navigate(`/messages?user=${notification.relatedUserId}`)
+        if ((notification.type?.startsWith('message_request') || notification.type === 'chat_delete_request') && notification.relatedUserId) {
+            navigate(`/messages?user=${notification.relatedUserId}`, {
+                state: {
+                    notificationUser: {
+                        id: notification.relatedUserId,
+                        fullName: notification.message?.replace(/ wants to chat with you\.?$/, '') || 'JOINLY user',
+                        profileImage: notification.relatedUserImage,
+                    }
+                }
+            })
         } else if (notification.relatedPlanId) {
             navigate(`/plans/${notification.relatedPlanId}`)
         }
@@ -34,7 +42,7 @@ export default function NotificationItem({ notification, onClick }) {
                     {notification.message}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
-                    {formatDate(notification.createdAt)}
+                    {formatDate(notification.createdAt)} {notification.createdAt && `· ${new Date(notification.createdAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`}
                 </div>
             </div>
             {isUnread && (

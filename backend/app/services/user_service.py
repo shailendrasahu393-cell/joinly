@@ -4,6 +4,54 @@ from ..schemas.user import UserCreate, UserUpdate
 
 class UserService:
     @staticmethod
+    def is_blocked_by(profile_owner_id: str, viewer_id: str):
+        if db is None or not profile_owner_id or not viewer_id: return False
+        return db.collection('blocked_users').document(f'{profile_owner_id}_{viewer_id}').get().exists
+
+    @staticmethod
+    def is_blocked(first_uid: str, second_uid: str):
+        if db is None: return False
+        for blocker_id, blocked_id in [(first_uid, second_uid), (second_uid, first_uid)]:
+            if db.collection('blocked_users').document(f'{blocker_id}_{blocked_id}').get().exists:
+                return True
+        return False
+
+    @staticmethod
+    def block_user(blocker_id: str, blocked_id: str):
+        if db is None: return None
+        if blocker_id == blocked_id: raise ValueError('You cannot block yourself')
+        if not UserService.get_user(blocked_id): raise ValueError('User not found')
+        db.collection('blocked_users').document(f'{blocker_id}_{blocked_id}').set({
+            'id': f'{blocker_id}_{blocked_id}',
+            'blockerId': blocker_id,
+            'blockedId': blocked_id,
+            'createdAt': datetime.utcnow(),
+        })
+        return {'blocked': True, 'userId': blocked_id}
+
+    @staticmethod
+    def unblock_user(blocker_id: str, blocked_id: str):
+        if db is None: return False
+        reference = db.collection('blocked_users').document(f'{blocker_id}_{blocked_id}')
+        if not reference.get().exists: return False
+        reference.delete()
+        return True
+
+    @staticmethod
+    def get_blocked_users(blocker_id: str):
+        if db is None: return []
+        results = []
+        for doc in db.collection('blocked_users').where('blockerId', '==', blocker_id).stream():
+            data = doc.to_dict()
+            user = UserService.get_user(data.get('blockedId'))
+            if user:
+                user.pop('email', None)
+                results.append(user)
+            else:
+                doc.reference.delete()
+        return results
+
+    @staticmethod
     def get_user(uid: str):
         if db is None: return None # MVP Mock gracefully
         doc = db.collection('users').document(uid).get()
@@ -29,6 +77,8 @@ class UserService:
             user = doc.to_dict()
             candidate = str(user.get('username', '')).lower()
             if query in candidate and user.get('id') != exclude_uid:
+                if UserService.is_blocked(exclude_uid, user.get('id')):
+                    continue
                 user.pop('email', None)
                 results.append(user)
         return results[:20]
