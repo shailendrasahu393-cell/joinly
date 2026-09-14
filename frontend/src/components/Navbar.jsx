@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Bell, LogOut, MessageCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { logOut } from '../services/auth'
@@ -8,6 +8,7 @@ import useUnreadNotifications from '../hooks/useUnreadNotifications'
 
 export default function Navbar() {
     const { currentUser, userProfile } = useAuth()
+    const location = useLocation()
     const navigate = useNavigate()
     const unreadCount = useUnreadMessages()
     const unreadNotificationCount = useUnreadNotifications()
@@ -51,11 +52,23 @@ export default function Navbar() {
                     </>
                 ) : (
                     <div className="nav-actions">
+                    <NavLink to="/about" className="nav-about-link">About JOINLY</NavLink>
                         <NavLink to="/login" className="btn btn-ghost btn-sm">Log in</NavLink>
                         <NavLink to="/signup" className="btn btn-primary btn-sm">Sign up</NavLink>
                     </div>
                 )}
             </div>
+
+              {!currentUser && (
+                <div className={`public-mobile-nav ${location.pathname === '/about' ? 'public-mobile-nav-about' : ''}`}>
+                  <NavLink to="/" className="public-mobile-brand">JOINLY</NavLink>
+                  <NavLink to="/about" className="public-mobile-about">About JOINLY</NavLink>
+                  <div className="public-mobile-actions">
+                    <NavLink to="/login" className="btn btn-ghost btn-sm">Log in</NavLink>
+                    <NavLink to="/signup" className="btn btn-primary btn-sm">Sign up</NavLink>
+                  </div>
+                </div>
+              )}
 
             <style>{`
         .desktop-nav {
@@ -117,6 +130,16 @@ export default function Navbar() {
             gap: 8px;
           }
 
+          .nav-about-link {
+            padding: 8px 10px;
+            color: var(--color-primary);
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+          }
+
+          .nav-about-link:hover { text-decoration: underline; }
+
           .nav-icon-btn {
             position: relative;
             display: flex;
@@ -136,6 +159,16 @@ export default function Navbar() {
 
           .nav-avatar-link { text-decoration: none; }
           .unread-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-danger); border: 2px solid white; }
+        }
+
+        .public-mobile-nav { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 8px 16px; background: rgba(255,255,255,0.94); border-bottom: 1px solid var(--color-border-light); }
+        .public-mobile-nav-about { display: none; }
+        .public-mobile-brand { color: var(--color-primary); font-size: 20px; font-weight: 800; text-decoration: none; }
+        .public-mobile-about { color: var(--color-text-secondary); font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+        .public-mobile-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+
+        @media (min-width: 1024px) {
+          .public-mobile-nav { display: none; }
         }
       `}</style>
         </nav>

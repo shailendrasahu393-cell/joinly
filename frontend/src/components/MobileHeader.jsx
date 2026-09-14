@@ -8,16 +8,22 @@ export default function MobileHeader({ title, showBack, showCity }) {
     const navigate = useNavigate()
     const location = useLocation()
     const { userProfile } = useAuth()
+    const { currentUser } = useAuth()
     const unreadCount = useUnreadMessages()
-    const unreadNotificationCount = useUnreadNotifications()
+    const unreadNotificationCount = useUnreadNotifications({ mobileOnly: true })
 
     const isHome = location.pathname === '/home'
+
+    const handleBack = () => {
+      if (window.history.length > 1) navigate(-1)
+      else navigate('/')
+    }
 
     return (
         <header className="mobile-header">
             <div className="mh-left">
                 {showBack ? (
-                    <button onClick={() => navigate(-1)} className="mh-icon-btn" aria-label="Go back">
+                    <button onClick={handleBack} className="mh-icon-btn" aria-label="Go back">
                         <ArrowLeft size={22} />
                     </button>
                 ) : isHome ? (
@@ -34,7 +40,7 @@ export default function MobileHeader({ title, showBack, showCity }) {
                     <div className="mh-title">{title}</div>
                 )}
             </div>
-            <div className="mh-right">
+            {currentUser && <div className="mh-right">
                 <button onClick={() => navigate('/notifications')} className="mh-icon-btn" aria-label="Notifications">
                     <Bell size={20} />
                   {unreadNotificationCount > 0 && <span className="mh-unread-dot" aria-label={`${unreadNotificationCount} unread notifications`} />}
@@ -43,7 +49,7 @@ export default function MobileHeader({ title, showBack, showCity }) {
                   <MessageCircle size={20} />
                   {unreadCount > 0 && <span className="mh-unread-dot" aria-label={`${unreadCount} unread messages`} />}
                 </button>
-            </div>
+            </div>}
 
             <style>{`
         .mobile-header {

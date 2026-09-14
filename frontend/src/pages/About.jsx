@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import MobileHeader from '../components/MobileHeader'
-import { Heart, ShieldCheck, Sparkles, LockKeyhole, Code2, Users, MapPin, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Heart, ShieldCheck, Sparkles, LockKeyhole, Code2, Users, MapPin, ExternalLink } from 'lucide-react'
 
 const developer = {
     name: 'Shailendra Sahu',
@@ -20,6 +20,7 @@ const Section = ({ id, icon: Icon, title, children }) => (
 
 export default function About() {
     const { hash } = useLocation()
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -30,6 +31,7 @@ export default function About() {
             <MobileHeader title="About JOINLY" showBack />
             <main className="page-content about-page">
                 <header className="about-hero">
+                    <button className="about-back-button" onClick={() => navigate('/')}><ArrowLeft size={16} /> Back</button>
                     <div className="about-logo">JOINLY</div>
                     <p className="about-kicker">Find people. Join plans. Make memories.</p>
                     <h1>Plans are better together.</h1>
@@ -79,7 +81,9 @@ export default function About() {
             </main>
             <style>{`
                 .about-page { max-width: 820px; padding-bottom: 48px; }
-                .about-hero { padding: 34px 0 30px; border-bottom: 1px solid var(--color-border-light); }
+                .about-hero { padding: 18px 0 30px; border-bottom: 1px solid var(--color-border-light); }
+                .about-back-button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; margin-bottom: 20px; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+                .about-back-button:hover { color: var(--color-primary); }
                 .about-logo { color: var(--color-primary); font-size: 14px; font-weight: 800; letter-spacing: 1.5px; }
                 .about-kicker { margin: 8px 0 24px; color: var(--color-text-secondary); font-size: 13px; }
                 .about-hero h1 { margin: 0 0 10px; font-size: clamp(28px, 5vw, 42px); line-height: 1.12; }
@@ -106,6 +110,7 @@ export default function About() {
                 @media (max-width: 600px) {
                     .about-page { padding-top: 0; }
                     .about-hero { padding-top: 24px; }
+                    .about-back-button { display: none; }
                     .about-benefits { grid-template-columns: 1fr; }
                     .about-section { padding: 24px 0; }
                 }
