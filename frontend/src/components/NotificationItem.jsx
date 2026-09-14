@@ -8,7 +8,9 @@ export default function NotificationItem({ notification, onClick }) {
 
     const handleClick = () => {
         onClick?.(notification.id)
-        if (notification.relatedPlanId) {
+        if (notification.type === 'message_request' && notification.relatedUserId) {
+            navigate(`/messages?user=${notification.relatedUserId}`)
+        } else if (notification.relatedPlanId) {
             navigate(`/plans/${notification.relatedPlanId}`)
         }
     }
