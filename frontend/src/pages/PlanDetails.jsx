@@ -299,11 +299,11 @@ export default function PlanDetails() {
 
                 {/* Fixed Bottom Action Bar (if not host) */}
                 {!isHost && !isCancelled && !isClosed && (
-                    <div style={{
-                        position: 'fixed', bottom: 0, left: 0, right: 0,
+                    <div className="plan-action-bar" style={{
+                        position: 'fixed', bottom: '64px', left: 0, right: 0,
                         padding: '16px 20px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
                         background: 'var(--color-surface)', borderTop: '1px solid var(--color-border-light)',
-                        display: 'flex', justifyContent: 'center', zIndex: 40,
+                        display: 'flex', justifyContent: 'center', zIndex: 110,
                         boxShadow: '0 -4px 12px rgba(0,0,0,0.05)'
                     }}>
                         <div style={{ width: '100%', maxWidth: 600 }}>
@@ -325,12 +325,18 @@ export default function PlanDetails() {
                                     onClick={handleRequestJoin}
                                     disabled={requestLoading || !currentUser}
                                 >
-                                    {requestLoading ? 'Sending...' : 'Request to Join'}
+                                    {requestLoading ? 'Sending...' : 'Join Plan'}
                                 </button>
                             )}
                         </div>
                     </div>
                 )}
+
+                <style>{`
+                    @media (min-width: 1024px) {
+                        .plan-action-bar { bottom: 0 !important; }
+                    }
+                `}</style>
             </div>
 
             {/* Modals */}
