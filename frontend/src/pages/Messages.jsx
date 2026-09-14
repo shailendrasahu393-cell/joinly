@@ -328,6 +328,7 @@ export default function Messages() {
                                         <>
                                             <h2>Message request declined</h2>
                                             <p>You cannot start a chat with this user right now.</p>
+                                            <button className="btn btn-primary" onClick={sendMessageRequest}>Send request again</button>
                                         </>
                                     ) : (
                                         <>

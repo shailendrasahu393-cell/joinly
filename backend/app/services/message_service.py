@@ -62,18 +62,31 @@ class MessageService:
         existing = request_ref.get()
         if existing.exists:
             data = existing.to_dict()
-            return {**data, 'id': existing.id}
+            if data.get('status') == 'accepted':
+                return {**data, 'id': existing.id}
+            if data.get('status') == 'pending':
+                return {**data, 'id': existing.id}
 
-        now = datetime.utcnow()
-        request = {
-            'id': request_ref.id,
-            'requesterId': requester_id,
-            'recipientId': recipient_id,
-            'status': 'pending',
-            'createdAt': now,
-            'updatedAt': now,
-        }
-        request_ref.set(request)
+            now = datetime.utcnow()
+            request_ref.update({
+                'requesterId': requester_id,
+                'recipientId': recipient_id,
+                'status': 'pending',
+                'updatedAt': now,
+            })
+            request = {**data, 'requesterId': requester_id, 'recipientId': recipient_id,
+                       'status': 'pending', 'updatedAt': now, 'id': existing.id}
+        else:
+            now = datetime.utcnow()
+            request = {
+                'id': request_ref.id,
+                'requesterId': requester_id,
+                'recipientId': recipient_id,
+                'status': 'pending',
+                'createdAt': now,
+                'updatedAt': now,
+            }
+            request_ref.set(request)
 
         requester = UserService.get_user(requester_id)
         requester_name = requester.get('fullName', 'Someone') if requester else 'Someone'
@@ -121,6 +134,14 @@ class MessageService:
                 notif_type='message_request_accepted',
                 title='Message request accepted',
                 message='Your message request was accepted.',
+                related_user_id=recipient_id,
+            )
+        else:
+            NotificationService.create_notification(
+                user_id=request['requesterId'],
+                notif_type='message_request_declined',
+                title='Message request declined',
+                message='Your message request was declined. You can send another request later.',
                 related_user_id=recipient_id,
             )
         return {**request, 'status': action, 'updatedAt': now, 'id': request_id}

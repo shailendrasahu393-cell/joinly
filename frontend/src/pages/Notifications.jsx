@@ -30,9 +30,11 @@ export default function Notifications() {
         const notif = notifications.find(n => n.id === id)
         if (!notif || notif.read) return
 
-        setNotifications(notifications.map(n =>
-            n.id === id ? { ...n, read: true } : n
-        ))
+        if (notif.type !== 'message_request') {
+            setNotifications(notifications.map(n =>
+                n.id === id ? { ...n, read: true } : n
+            ))
+        }
 
         // Update backend (fire and forget)
         api.patch(`/notifications/${id}/read`).catch(console.error)

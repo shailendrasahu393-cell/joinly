@@ -48,6 +48,14 @@ class NotificationService:
         doc = doc_ref.get()
         if not doc.exists or doc.to_dict().get('userId') != user_id:
             return False
+        notification = doc.to_dict()
+        if notification.get('type') == 'message_request':
+            request_id = notification.get('relatedUserId')
+            if request_id:
+                from ..services.message_service import MessageService, conversation_id
+                access = MessageService.get_message_access(user_id, request_id)
+                if access.get('status') == 'pending':
+                    return True
         doc_ref.update({"read": True})
         return True
 
