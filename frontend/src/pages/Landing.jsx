@@ -116,6 +116,7 @@ export default function Landing() {
             <footer className="landing-footer">
                 <div className="footer-logo">JOINLY</div>
                 <p>Find people. Join plans. Make memories.</p>
+                <p className="footer-about"><a href="/about">About JOINLY</a></p>
               <p className="footer-credit">
                 Built with <Heart size={14} fill="currentColor" aria-hidden="true" /> by{' '}
                 <a href="https://www.linkedin.com/in/shailendrasahu-/" target="_blank" rel="noreferrer">
@@ -300,6 +301,16 @@ export default function Landing() {
           margin-top: 8px;
           font-size: 12px;
         }
+
+        .footer-about { margin: 12px 0 0; }
+
+        .footer-about a {
+          color: var(--color-primary);
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .footer-about a:hover { text-decoration: underline; }
 
         .footer-credit svg { color: var(--color-primary); }
 

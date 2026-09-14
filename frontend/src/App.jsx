@@ -19,6 +19,7 @@ import Notifications from './pages/Notifications'
 import Profile from './pages/Profile'
 import EditProfile from './pages/EditProfile'
 import Settings from './pages/Settings'
+import About from './pages/About'
 import Messages from './pages/Messages'
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
                 <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/about" element={<About />} />
 
                 {/* Protected Routes */}
                 <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />

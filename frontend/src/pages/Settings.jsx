@@ -52,7 +52,7 @@ export default function Settings() {
                     </div>
                     <SettingRow icon={Edit3} title="Edit Profile" onClick={() => navigate('/profile/edit')} />
                     <SettingRow icon={User} title="Account Details" onClick={() => { }} />
-                    <SettingRow icon={Shield} title="Privacy & Safety" onClick={() => { }} />
+                    <SettingRow icon={Shield} title="Privacy & Safety" onClick={() => navigate('/about#privacy')} />
                     <SettingRow
                         icon={Bell}
                         title={notificationPermission === 'granted' ? 'Notifications enabled' : 'Enable notifications'}
@@ -64,7 +64,7 @@ export default function Settings() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
                         App
                     </div>
-                    <SettingRow icon={Info} title="About JOINLY" onClick={() => { }} />
+                    <SettingRow icon={Info} title="About JOINLY" onClick={() => navigate('/about')} />
                 </div>
 
                 <div>
