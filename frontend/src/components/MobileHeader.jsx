@@ -2,12 +2,14 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Bell, ArrowLeft, MapPin, MessageCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import useUnreadMessages from '../hooks/useUnreadMessages'
+import useUnreadNotifications from '../hooks/useUnreadNotifications'
 
 export default function MobileHeader({ title, showBack, showCity }) {
     const navigate = useNavigate()
     const location = useLocation()
     const { userProfile } = useAuth()
     const unreadCount = useUnreadMessages()
+    const unreadNotificationCount = useUnreadNotifications()
 
     const isHome = location.pathname === '/home'
 
@@ -35,6 +37,7 @@ export default function MobileHeader({ title, showBack, showCity }) {
             <div className="mh-right">
                 <button onClick={() => navigate('/notifications')} className="mh-icon-btn" aria-label="Notifications">
                     <Bell size={20} />
+                  {unreadNotificationCount > 0 && <span className="mh-unread-dot" aria-label={`${unreadNotificationCount} unread notifications`} />}
                 </button>
                 <button onClick={() => navigate('/messages')} className="mh-icon-btn" aria-label="Messages">
                   <MessageCircle size={20} />

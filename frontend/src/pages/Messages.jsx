@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MessageCircle, Send, ArrowLeft, Trash2 } from 'lucide-react'
+import { MessageCircle, Send, ArrowLeft, Trash2, Check, X } from 'lucide-react'
 import api from '../services/api'
 import MobileHeader from '../components/MobileHeader'
 import UserAvatar from '../components/UserAvatar'
@@ -23,6 +23,7 @@ export default function Messages() {
     const [messagesLoading, setMessagesLoading] = useState(false)
     const [sending, setSending] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [messageAccess, setMessageAccess] = useState({ status: 'none' })
 
     const timestampValue = (value) => {
         if (!value) return 0
@@ -68,6 +69,7 @@ export default function Messages() {
                     participant: existing?.participant,
                     lastMessage: data.lastMessage,
                     lastMessageAt: data.lastMessageAt,
+                    unreadCount: data.unreadCounts?.[currentUser.uid] || 0,
                 }
             }).sort((first, second) => timestampValue(second.lastMessageAt) - timestampValue(first.lastMessageAt)))
         }, (error) => console.error('Conversation realtime listener failed', error))
@@ -78,6 +80,13 @@ export default function Messages() {
         const loadMessages = async () => {
             setMessagesLoading(true)
             try {
+                const accessResponse = await api.get(`/messages/access/${selectedUser.id}`)
+                const access = accessResponse.data || { status: 'none' }
+                setMessageAccess(access)
+                if (access.status !== 'accepted') {
+                    setMessages([])
+                    return
+                }
                 const response = await api.get(`/messages/${selectedUser.id}`)
                 setMessages(response.data || [])
             } catch (error) {
@@ -88,7 +97,9 @@ export default function Messages() {
             }
         }
         loadMessages()
-        api.post(`/messages/${selectedUser.id}/read`).catch(() => {})
+        if (messageAccess.status === 'accepted') {
+            api.post(`/messages/${selectedUser.id}/read`).catch(() => {})
+        }
 
         if (!firebaseConfigured || !db || !currentUser) return undefined
 
@@ -108,6 +119,11 @@ export default function Messages() {
 
     const selectConversation = (conversation) => {
         setSelectedUser(conversation.participant)
+        setConversations((current) => current.map((item) => (
+            item.participantId === conversation.participantId
+                ? { ...item, unreadCount: 0 }
+                : item
+        )))
         setSearchParams({ user: conversation.participantId })
     }
 
@@ -131,6 +147,33 @@ export default function Messages() {
                 : error.response?.data?.detail || 'Unable to send message.')
         } finally {
             setSending(false)
+        }
+    }
+
+    const sendMessageRequest = async () => {
+        try {
+            const response = await api.post(`/messages/requests/${selectedUser.id}`)
+            setMessageAccess({ ...response.data, status: 'pending', direction: 'outgoing' })
+            toast.success('Message request sent.')
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Unable to send message request.')
+        }
+    }
+
+    const handleMessageRequest = async (action) => {
+        try {
+            await api.patch(`/messages/requests/${messageAccess.requestId}`, { action })
+            if (action === 'accept') {
+                setMessageAccess({ status: 'accepted' })
+                const response = await api.get(`/messages/${selectedUser.id}`)
+                setMessages(response.data || [])
+                toast.success('Message request accepted.')
+            } else {
+                setMessageAccess((current) => ({ ...current, status: 'declined' }))
+                toast.info('Message request declined.')
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Unable to update message request.')
         }
     }
 
@@ -174,8 +217,9 @@ export default function Messages() {
                             <span className="conversation-copy">
                                 <strong>{conversation.participant?.fullName || 'JOINLY user'}</strong>
                                 <small>@{conversation.participant?.username || 'user'}</small>
-                                {conversation.lastMessage && <span>{conversation.lastMessage}</span>}
+                                {conversation.unreadCount > 0 && <span className="new-message-label">New message</span>}
                             </span>
+                            {conversation.unreadCount > 0 && <span className="conversation-unread-dot" aria-label="Unread message" />}
                         </button>
                     )) : <EmptyState icon={MessageCircle} title="No conversations yet" message="Find someone in Discover and start a conversation." />}
                 </aside>
@@ -193,17 +237,51 @@ export default function Messages() {
                                     <Trash2 size={18} />
                                 </button>
                             </header>
-                            <div className="chat-messages">
-                                {messagesLoading ? <LoadingSkeleton type="list" count={4} /> : messages.length ? messages.map((message) => (
-                                    <div key={message.id} className={`message-bubble ${message.senderId === currentUser?.uid ? 'mine' : ''}`}>
-                                        {message.text}
+                            {messageAccess.status === 'accepted' ? (
+                                <>
+                                    <div className="chat-messages">
+                                        {messagesLoading ? <LoadingSkeleton type="list" count={4} /> : messages.length ? messages.map((message) => (
+                                            <div key={message.id} className={`message-bubble ${message.senderId === currentUser?.uid ? 'mine' : ''}`}>
+                                                {message.text}
+                                            </div>
+                                        )) : <p className="chat-empty">Start the conversation.</p>}
                                     </div>
-                                )) : <p className="chat-empty">Start the conversation.</p>}
-                            </div>
-                            <form className="chat-composer" onSubmit={sendMessage}>
-                                <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Message..." maxLength={2000} />
-                                <button type="submit" disabled={sending || !text.trim()} aria-label="Send message"><Send size={18} /></button>
-                            </form>
+                                    <form className="chat-composer" onSubmit={sendMessage}>
+                                        <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Message..." maxLength={2000} />
+                                        <button type="submit" disabled={sending || !text.trim()} aria-label="Send message"><Send size={18} /></button>
+                                    </form>
+                                </>
+                            ) : (
+                                <div className="message-request-panel">
+                                    <MessageCircle size={32} />
+                                    {messageAccess.status === 'pending' && messageAccess.direction === 'incoming' ? (
+                                        <>
+                                            <h2>New message request</h2>
+                                            <p>{selectedUser.fullName} wants to chat with you.</p>
+                                            <div className="message-request-actions">
+                                                <button className="btn btn-primary btn-sm" onClick={() => handleMessageRequest('accept')}><Check size={16} /> Accept</button>
+                                                <button className="btn btn-secondary btn-sm" onClick={() => handleMessageRequest('decline')}><X size={16} /> Decline</button>
+                                            </div>
+                                        </>
+                                    ) : messageAccess.status === 'pending' ? (
+                                        <>
+                                            <h2>Message request sent</h2>
+                                            <p>Wait for {selectedUser.fullName} to accept before chatting.</p>
+                                        </>
+                                    ) : messageAccess.status === 'declined' ? (
+                                        <>
+                                            <h2>Message request declined</h2>
+                                            <p>You cannot start a chat with this user right now.</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h2>Start a conversation</h2>
+                                            <p>Send a message request before chatting with {selectedUser.fullName}.</p>
+                                            <button className="btn btn-primary" onClick={sendMessageRequest}>Send message request</button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </>
                     ) : <div className="chat-placeholder"><MessageCircle size={34} /><h2>Your messages</h2><p>Select a conversation or find someone in Discover.</p></div>}
                 </main>
@@ -218,6 +296,8 @@ export default function Messages() {
         .conversation-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
         .conversation-copy strong { color: var(--color-text); font-size: 14px; }
         .conversation-copy small, .conversation-copy span { color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .conversation-copy .new-message-label { color: var(--color-primary); font-weight: 700; }
+        .conversation-unread-dot { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--color-danger); }
         .chat-panel { display: flex; flex-direction: column; min-width: 0; }
         .chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--color-border-light); }
         .chat-header div { display: flex; flex-direction: column; }
@@ -231,6 +311,10 @@ export default function Messages() {
         .message-bubble.mine { align-self: flex-end; color: white; background: var(--color-primary); border-radius: 16px 16px 4px 16px; }
         .chat-empty, .chat-placeholder { margin: auto; color: var(--color-text-secondary); text-align: center; }
         .chat-placeholder h2 { color: var(--color-text); margin: 10px 0 4px; }
+        .message-request-panel { margin: auto; max-width: 360px; padding: 24px; color: var(--color-text-secondary); text-align: center; }
+        .message-request-panel h2 { margin: 12px 0 4px; color: var(--color-text); font-size: 18px; }
+        .message-request-panel p { margin: 0 0 16px; font-size: 14px; }
+        .message-request-actions { display: flex; justify-content: center; gap: 8px; }
         .chat-composer { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--color-border-light); background: var(--color-surface); }
         .chat-composer input { flex: 1; min-width: 0; height: 46px; border: 1px solid var(--color-border); border-radius: var(--radius-full); padding: 12px 16px; outline: none; }
         .chat-composer button { flex: 0 0 46px; width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--color-primary); color: white; cursor: pointer; }

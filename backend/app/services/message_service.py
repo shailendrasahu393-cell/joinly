@@ -4,6 +4,7 @@ from datetime import datetime
 from ..services.firebase import db
 from ..services.user_service import UserService
 from ..core.config import settings
+from ..services.notification_service import NotificationService
 
 
 class MessageLimitExceeded(Exception):
@@ -15,6 +16,88 @@ def conversation_id(first_uid: str, second_uid: str):
 
 
 class MessageService:
+    @staticmethod
+    def get_message_access(uid: str, other_uid: str):
+        if db is None: return {'status': 'unavailable'}
+
+        conversation_ref = db.collection('conversations').document(conversation_id(uid, other_uid))
+        if conversation_ref.get().exists:
+            return {'status': 'accepted'}
+
+        request_ref = db.collection('message_requests').document(conversation_id(uid, other_uid))
+        request = request_ref.get()
+        if not request.exists:
+            return {'status': 'none'}
+
+        data = request.to_dict()
+        return {
+            'status': data.get('status', 'pending'),
+            'requestId': request.id,
+            'direction': 'outgoing' if data.get('requesterId') == uid else 'incoming',
+        }
+
+    @staticmethod
+    def create_message_request(requester_id: str, recipient_id: str):
+        if db is None: return None
+        if not UserService.get_user(recipient_id): return None
+
+        request_ref = db.collection('message_requests').document(conversation_id(requester_id, recipient_id))
+        existing = request_ref.get()
+        if existing.exists:
+            data = existing.to_dict()
+            return {**data, 'id': existing.id}
+
+        now = datetime.utcnow()
+        request = {
+            'id': request_ref.id,
+            'requesterId': requester_id,
+            'recipientId': recipient_id,
+            'status': 'pending',
+            'createdAt': now,
+            'updatedAt': now,
+        }
+        request_ref.set(request)
+
+        requester = UserService.get_user(requester_id)
+        requester_name = requester.get('fullName', 'Someone') if requester else 'Someone'
+        NotificationService.create_notification(
+            user_id=recipient_id,
+            notif_type='message_request',
+            title='New message request',
+            message=f'{requester_name} wants to chat with you.',
+            related_user_id=requester_id,
+        )
+        return request
+
+    @staticmethod
+    def handle_message_request(request_id: str, recipient_id: str, action: str):
+        if db is None: return None
+        if action not in ['accept', 'decline']:
+            raise ValueError('Invalid message request action')
+
+        request_ref = db.collection('message_requests').document(request_id)
+        request_doc = request_ref.get()
+        if not request_doc.exists:
+            raise ValueError('Message request not found')
+
+        request = request_doc.to_dict()
+        if request.get('recipientId') != recipient_id:
+            raise PermissionError('Only the recipient can handle this request')
+        if request.get('status') != 'pending':
+            raise ValueError('Message request already handled')
+
+        now = datetime.utcnow()
+        request_ref.update({'status': action, 'updatedAt': now})
+        if action == 'accept':
+            NotificationService.create_notification(
+                user_id=request['requesterId'],
+                notif_type='message_request_accepted',
+                title='Message request accepted',
+                message='Your message request was accepted.',
+                related_user_id=recipient_id,
+            )
+        return {**request, 'status': action, 'updatedAt': now, 'id': request_id}
+
     @staticmethod
     def get_conversations(uid: str):
         if db is None: return []
@@ -42,6 +125,10 @@ class MessageService:
     def get_messages(uid: str, other_uid: str):
         if db is None: return []
 
+        access = MessageService.get_message_access(uid, other_uid)
+        if access.get('status') != 'accepted':
+            raise PermissionError('Accept the message request before opening this chat')
+
         conversation = conversation_id(uid, other_uid)
         docs = db.collection('messages').where('conversationId', '==', conversation).stream()
         messages = [doc.to_dict() for doc in docs]
@@ -52,6 +139,8 @@ class MessageService:
     def send_message(uid: str, recipient_uid: str, text: str):
         if db is None: return None
         if not UserService.get_user(recipient_uid): return None
+        if MessageService.get_message_access(uid, recipient_uid).get('status') != 'accepted':
+            raise PermissionError('Accept the message request before sending messages')
 
         clean_text = text.strip()
         if not clean_text or len(clean_text) > settings.MESSAGE_MAX_LENGTH:
