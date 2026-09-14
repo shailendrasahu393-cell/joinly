@@ -88,6 +88,12 @@ export default function Messages() {
 
             document.documentElement.style.setProperty('--joinly-layout-height', `${layoutHeight}px`)
 
+            if (isKeyboardOpen) {
+                document.body.classList.add('keyboard-open')
+            } else {
+                document.body.classList.remove('keyboard-open')
+            }
+
             const offsetTop = viewport?.offsetTop || 0
             const panel = document.querySelector('.chat-panel')
             let overlap = 0
@@ -104,6 +110,7 @@ export default function Messages() {
         viewport?.addEventListener('scroll', updateViewportHeight)
         window.addEventListener('resize', updateViewportHeight)
         return () => {
+            document.body.classList.remove('keyboard-open')
             viewport?.removeEventListener('resize', updateViewportHeight)
             viewport?.removeEventListener('scroll', updateViewportHeight)
             window.removeEventListener('resize', updateViewportHeight)
@@ -595,6 +602,8 @@ export default function Messages() {
         .chat-composer button { flex: 0 0 46px; width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--color-primary); color: white; cursor: pointer; }
         .chat-composer button:disabled { opacity: .5; cursor: not-allowed; }
         @media (max-width: 767px) {
+            body.keyboard-open .mobile-bottom-nav { display: none !important; }
+            body.keyboard-open .messages-layout { height: calc(var(--joinly-layout-height, 100dvh) - 56px - env(safe-area-inset-bottom, 0px)) !important; }
             .messages-page { height: var(--joinly-layout-height, 100dvh); min-height: var(--joinly-layout-height, 100dvh); overflow: hidden; overscroll-behavior: none; }
             .messages-layout { display: block; height: calc(var(--joinly-layout-height, 100dvh) - 56px - 64px - env(safe-area-inset-bottom, 0px)); min-height: 0; overflow: hidden; position: relative; }
             .conversation-panel { border-right: 0; padding: 12px 12px 80px; }
