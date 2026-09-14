@@ -89,6 +89,16 @@ class MessageService:
         now = datetime.utcnow()
         request_ref.update({'status': action, 'updatedAt': now})
         if action == 'accept':
+            db.collection('conversations').document(
+                conversation_id(request['requesterId'], request['recipientId'])
+            ).set({
+                'participants': [request['requesterId'], request['recipientId']],
+                'unreadCounts': {
+                    request['requesterId']: 0,
+                    request['recipientId']: 0,
+                },
+                'updatedAt': now,
+            }, merge=True)
             NotificationService.create_notification(
                 user_id=request['requesterId'],
                 notif_type='message_request_accepted',
