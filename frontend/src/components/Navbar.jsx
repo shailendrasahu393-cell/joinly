@@ -64,6 +64,9 @@ export default function Navbar() {
                   <NavLink to="/" className="public-mobile-brand">JOINLY</NavLink>
                   <NavLink to="/about" className="public-mobile-about">About JOINLY</NavLink>
                   <div className="public-mobile-actions">
+                    {location.pathname !== '/' && location.pathname !== '/about' && (
+                      <button onClick={() => navigate('/')} className="public-mobile-back" aria-label="Back to home">Back</button>
+                    )}
                     <NavLink to="/login" className="btn btn-ghost btn-sm">Log in</NavLink>
                     <NavLink to="/signup" className="btn btn-primary btn-sm">Sign up</NavLink>
                   </div>
@@ -71,9 +74,8 @@ export default function Navbar() {
               )}
 
             <style>{`
-        .desktop-nav {
-          display: none;
-        }
+        .desktop-nav { display: block; }
+        .desktop-nav > .nav-inner { display: none; }
 
         @media (min-width: 1024px) {
           .desktop-nav {
@@ -85,6 +87,8 @@ export default function Navbar() {
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--color-border-light);
           }
+
+          .desktop-nav > .nav-inner { display: flex; }
 
           .nav-inner {
             max-width: 1200px;
@@ -166,6 +170,8 @@ export default function Navbar() {
         .public-mobile-brand { color: var(--color-primary); font-size: 20px; font-weight: 800; text-decoration: none; }
         .public-mobile-about { color: var(--color-text-secondary); font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap; }
         .public-mobile-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+        .public-mobile-back { padding: 7px 8px; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .public-mobile-back:hover { color: var(--color-primary); }
 
         @media (min-width: 1024px) {
           .public-mobile-nav { display: none; }
