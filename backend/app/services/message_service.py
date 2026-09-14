@@ -17,6 +17,23 @@ def conversation_id(first_uid: str, second_uid: str):
 
 class MessageService:
     @staticmethod
+    def search_contacts(uid: str, username: str):
+        if db is None: return []
+        query = username.strip().lower()
+        if not query: return []
+
+        results = []
+        for doc in db.collection('users').stream():
+            user = doc.to_dict()
+            if user.get('id') == uid or query not in str(user.get('username', '')).lower():
+                continue
+            if MessageService.get_message_access(uid, user.get('id')).get('status') != 'accepted':
+                continue
+            user.pop('email', None)
+            results.append(user)
+        return results[:20]
+
+    @staticmethod
     def get_message_access(uid: str, other_uid: str):
         if db is None: return {'status': 'unavailable'}
 

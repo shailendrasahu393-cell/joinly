@@ -17,6 +17,11 @@ def get_unread_count(current_user: dict = Depends(get_current_user)):
     return {'count': MessageService.get_unread_count(current_user['uid'])}
 
 
+@router.get('/search')
+def search_contacts(username: str, current_user: dict = Depends(get_current_user)):
+    return MessageService.search_contacts(current_user['uid'], username)
+
+
 @router.get('/access/{user_id}')
 def get_message_access(user_id: str, current_user: dict = Depends(get_current_user)):
     return MessageService.get_message_access(current_user['uid'], user_id)

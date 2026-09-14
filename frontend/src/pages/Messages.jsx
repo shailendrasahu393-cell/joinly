@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MessageCircle, Send, ArrowLeft, Trash2, Check, X } from 'lucide-react'
+import { MessageCircle, Send, ArrowLeft, Trash2, Check, X, Search } from 'lucide-react'
 import api from '../services/api'
 import MobileHeader from '../components/MobileHeader'
 import UserAvatar from '../components/UserAvatar'
@@ -24,6 +24,9 @@ export default function Messages() {
     const [sending, setSending] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [messageAccess, setMessageAccess] = useState({ status: 'none' })
+    const [contactSearch, setContactSearch] = useState('')
+    const [contactResults, setContactResults] = useState([])
+    const [contactSearchLoading, setContactSearchLoading] = useState(false)
 
     const timestampValue = (value) => {
         if (!value) return 0
@@ -74,6 +77,27 @@ export default function Messages() {
             }).sort((first, second) => timestampValue(second.lastMessageAt) - timestampValue(first.lastMessageAt)))
         }, (error) => console.error('Conversation realtime listener failed', error))
     }, [searchParams, currentUser])
+
+    useEffect(() => {
+        const query = contactSearch.trim()
+        if (!query) {
+            setContactResults([])
+            return undefined
+        }
+
+        const timer = window.setTimeout(async () => {
+            setContactSearchLoading(true)
+            try {
+                const response = await api.get('/messages/search', { params: { username: query } })
+                setContactResults(response.data || [])
+            } catch {
+                setContactResults([])
+            } finally {
+                setContactSearchLoading(false)
+            }
+        }, 300)
+        return () => window.clearTimeout(timer)
+    }, [contactSearch])
 
     useEffect(() => {
         if (!selectedUser) return undefined
@@ -167,6 +191,15 @@ export default function Messages() {
                 setMessageAccess({ status: 'accepted' })
                 const response = await api.get(`/messages/${selectedUser.id}`)
                 setMessages(response.data || [])
+                setConversations((current) => current.some((item) => item.participantId === selectedUser.id)
+                    ? current
+                    : [{
+                        id: [currentUser.uid, selectedUser.id].sort().join('_'),
+                        participantId: selectedUser.id,
+                        participant: selectedUser,
+                        unreadCount: 0,
+                    }, ...current]
+                )
                 toast.success('Message request accepted.')
             } else {
                 setMessageAccess((current) => ({ ...current, status: 'declined' }))
@@ -207,6 +240,29 @@ export default function Messages() {
                         <h1>Messages</h1>
                         <MessageCircle size={20} />
                     </div>
+                    <div className="contact-search">
+                        <Search size={16} />
+                        <input
+                            value={contactSearch}
+                            onChange={(event) => setContactSearch(event.target.value)}
+                            placeholder="Search accepted contacts..."
+                            aria-label="Search accepted contacts"
+                        />
+                    </div>
+                    {contactSearch && (
+                        <div className="contact-results">
+                            {contactSearchLoading ? <span className="search-status">Searching...</span> : contactResults.length ? contactResults.map((person) => (
+                                <button key={person.id} className="contact-result" onClick={() => {
+                                    setContactSearch('')
+                                    setSelectedUser(person)
+                                    setSearchParams({ user: person.id })
+                                }}>
+                                    <UserAvatar src={person.profileImage} name={person.fullName} size={32} />
+                                    <span><strong>{person.fullName}</strong><small>@{person.username}</small></span>
+                                </button>
+                            )) : <span className="search-status">No accepted contacts found.</span>}
+                        </div>
+                    )}
                     {loading ? <LoadingSkeleton type="list" count={4} /> : conversations.length ? conversations.map((conversation) => (
                         <button
                             key={conversation.id}
@@ -291,6 +347,13 @@ export default function Messages() {
         .conversation-panel { border-right: 1px solid var(--color-border-light); padding: 20px 12px; overflow-y: auto; }
         .messages-heading { display: flex; justify-content: space-between; align-items: center; padding: 0 10px 16px; color: var(--color-primary); }
         .messages-heading h1 { margin: 0; color: var(--color-text); font-size: 22px; }
+        .contact-search { display: flex; align-items: center; gap: 8px; margin: 0 4px 12px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-full); color: var(--color-text-tertiary); }
+        .contact-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--color-text); font-size: 13px; }
+        .contact-results { display: flex; flex-direction: column; gap: 4px; margin: 0 4px 12px; }
+        .contact-result { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: var(--radius-sm); background: var(--color-bg-secondary); text-align: left; cursor: pointer; }
+        .contact-result span { display: flex; flex-direction: column; min-width: 0; }
+        .contact-result small, .search-status { color: var(--color-text-secondary); font-size: 12px; }
+        .search-status { padding: 8px; }
         .conversation-item { width: 100%; display: flex; gap: 10px; padding: 12px 10px; border: 0; border-radius: var(--radius-md); background: none; text-align: left; cursor: pointer; }
         .conversation-item:hover, .conversation-item.active { background: var(--color-bg-secondary); }
         .conversation-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
