@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..services.firebase import db
 from ..services.user_service import UserService
@@ -220,7 +220,7 @@ class MessageService:
                 'pinned': pref_doc.to_dict().get('pinned', False) if (pref_doc and pref_doc.exists) else False,
             })
             
-        results.sort(key=lambda item: item.get('lastMessageAt') or datetime.min, reverse=True)
+        results.sort(key=lambda item: item.get('lastMessageAt') or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
         results.sort(key=lambda item: item.get('pinned', False), reverse=True)
         return results
 
@@ -293,7 +293,7 @@ class MessageService:
         conversation = conversation_id(uid, other_uid)
         docs = db.collection('messages').where('conversationId', '==', conversation).stream()
         messages = [doc.to_dict() for doc in docs]
-        messages.sort(key=lambda item: item.get('createdAt') or datetime.min)
+        messages.sort(key=lambda item: item.get('createdAt') or datetime.min.replace(tzinfo=timezone.utc))
         return messages[-settings.MESSAGE_HISTORY_LIMIT:]
 
     @staticmethod
