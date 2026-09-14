@@ -14,6 +14,7 @@ export default function Settings() {
     const toast = useToast()
     const [notificationPermission, setNotificationPermission] = useState('unsupported')
     const [showAccount, setShowAccount] = useState(false)
+    const [showPrivacy, setShowPrivacy] = useState(false)
     const [passwords, setPasswords] = useState({ current: '', next: '' })
     const [passwordLoading, setPasswordLoading] = useState(false)
 
@@ -72,7 +73,7 @@ export default function Settings() {
                     </div>
                     <SettingRow icon={Edit3} title="Edit Profile" onClick={() => navigate('/profile/edit')} />
                     <SettingRow icon={User} title="Account Details" onClick={() => setShowAccount(true)} />
-                    <SettingRow icon={Shield} title="Privacy & Safety" onClick={() => navigate('/blocked-users')} />
+                    <SettingRow icon={Shield} title="Privacy & Safety" onClick={() => setShowPrivacy(true)} />
                     <SettingRow icon={Ban} title="Blocked Users" onClick={() => navigate('/blocked-users')} />
                     <SettingRow
                         icon={Bell}
@@ -111,6 +112,29 @@ export default function Settings() {
                         <button className="btn btn-primary" disabled={passwordLoading}>{passwordLoading ? 'Changing...' : 'Change Password'}</button>
                     </form>
                     <button className="btn btn-secondary" onClick={async () => { try { await resetPassword(userProfile?.email); toast.success('Password reset email sent.') } catch { toast.error('Unable to send reset email.') } }}>Forgot Password</button>
+                </div>
+            </Modal>
+
+            <Modal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Privacy & Safety">
+                <div style={{ display: 'grid', gap: 24, fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    <div>
+                        <h3 style={{ fontSize: 16, color: 'var(--color-text)', marginBottom: 8 }}>Privacy Policy</h3>
+                        <p style={{ marginBottom: 8 }}>We collect the profile information you choose to provide, such as your name, username, city, interests, bio, and avatar, so JOINLY can show your profile and help people discover relevant plans.</p>
+                        <p style={{ marginBottom: 8 }}>Authentication is handled by Firebase Authentication. Profile, plan, join request, notification, and messaging data is stored using Firebase services and accessed through the app's authenticated flows. The backend verifies Firebase ID tokens before protected API operations.</p>
+                        <p>We do not sell your personal information. Other signed-in users may see information you make part of your public profile and plans. You can edit your profile or contact the developer for account-related help.</p>
+                    </div>
+                    <div>
+                        <h3 style={{ fontSize: 16, color: 'var(--color-text)', marginBottom: 8 }}>Terms & Community Guidelines</h3>
+                        <p style={{ marginBottom: 8 }}>By using JOINLY, you agree to provide accurate information, respect other members, and use the app only for lawful personal activities.</p>
+                        <ul style={{ paddingLeft: 20, marginBottom: 8 }}>
+                            <li style={{ marginBottom: 4 }}>Do not harass, threaten, impersonate, scam, or discriminate against anyone.</li>
+                            <li style={{ marginBottom: 4 }}>Do not share private information belonging to another person without permission.</li>
+                            <li style={{ marginBottom: 4 }}>Hosts should describe plans honestly. Members should send requests only when they genuinely intend to participate.</li>
+                            <li style={{ marginBottom: 4 }}>JOINLY is a planning and connection tool, not a guarantee that another person, plan, venue, or event is safe or available.</li>
+                        </ul>
+                        <p>Use your judgment, meet in public places, tell someone you trust about your plans, and stop communicating or report a user if something feels unsafe.</p>
+                    </div>
+                    <button className="btn btn-primary" onClick={() => setShowPrivacy(false)}>Close</button>
                 </div>
             </Modal>
         </div>

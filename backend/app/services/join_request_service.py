@@ -92,6 +92,9 @@ class JoinRequestService:
         now = datetime.utcnow()
         status = "accepted" if action == "accept" else "declined"
         doc_ref.update({"status": status, "updatedAt": now})
+        NotificationService.mark_join_request_notifications_read(
+            host_id, plan_id, req_data['requesterId']
+        )
         
         # Notification to requester
         status_text = status

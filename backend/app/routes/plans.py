@@ -3,12 +3,15 @@ from typing import List, Optional
 from ..dependencies.auth import get_current_user
 from ..schemas.plan import PlanCreate, PlanUpdate
 from ..services.plan_service import PlanService
+from ..services.user_service import UserService
 
 router = APIRouter()
 
 @router.post("")
 def create_plan(plan: PlanCreate, current_user: dict = Depends(get_current_user)):
     user_id = current_user["uid"]
+    if not UserService.is_profile_complete(UserService.get_user(user_id)):
+        raise HTTPException(status_code=400, detail="Complete your profile before creating a plan")
     new_plan = PlanService.create_plan(user_id, plan)
     if not new_plan:
         raise HTTPException(status_code=500, detail="Database not configured")
@@ -70,10 +73,14 @@ from ..services.join_request_service import JoinRequestService
 @router.post("/{plan_id}/join")
 def request_join(plan_id: str, current_user: dict = Depends(get_current_user)):
     try:
+        if not UserService.is_profile_complete(UserService.get_user(current_user["uid"])):
+            raise HTTPException(status_code=400, detail="Complete your profile before joining a plan")
         req = JoinRequestService.create_request(plan_id, current_user["uid"])
         if not req:
             raise HTTPException(status_code=500, detail="Database not configured")
         return req
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

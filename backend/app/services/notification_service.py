@@ -33,30 +33,19 @@ class NotificationService:
         results = []
         for doc in docs:
             notification = doc.to_dict()
-            related_user_id = notification.get('relatedUserId')
-            related_plan_id = notification.get('relatedPlanId')
-
-            if related_user_id and not db.collection('users').document(related_user_id).get().exists:
-                doc.reference.delete()
-                continue
-            if related_plan_id and not db.collection('plans').document(related_plan_id).get().exists:
-                doc.reference.delete()
-                continue
-            if related_user_id and notification.get('type', '').startswith('message_request'):
-                from ..services.message_service import MessageService
-                access = MessageService.get_message_access(user_id, related_user_id)
-                if access.get('status') == 'none':
-                    doc.reference.delete()
-                    continue
-
             results.append(notification)
 
         results.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
         
         # Enrich with user image
+        user_cache = {}
         for r in results:
-            if r.get('relatedUserId'):
-                u = UserService.get_user(r['relatedUserId'])
+            related_user_id = r.get('relatedUserId')
+            if related_user_id:
+                if related_user_id not in user_cache:
+                    u = UserService.get_user(related_user_id)
+                    user_cache[related_user_id] = u
+                u = user_cache[related_user_id]
                 if u: r['relatedUserImage'] = u.get('profileImage')
                 
         return results
@@ -77,6 +66,19 @@ class NotificationService:
             1 for notification in NotificationService.get_user_notifications(user_id)
             if not notification.get('read', False)
         )
+
+    @staticmethod
+    def mark_join_request_notifications_read(host_id: str, plan_id: str, requester_id: str):
+        if db is None: return
+        notifications = db.collection('notifications') \
+            .where('userId', '==', host_id) \
+            .where('type', '==', 'join_request') \
+            .where('relatedPlanId', '==', plan_id) \
+            .where('relatedUserId', '==', requester_id) \
+            .stream()
+        for notification in notifications:
+            if not notification.to_dict().get('read', False):
+                notification.reference.update({'read': True})
 
     @staticmethod
     def delete_for_plan(plan_id: str):

@@ -19,6 +19,11 @@ export default function Onboarding() {
         fullName: '', username: '', dateOfBirth: '', gender: '', profileImage: '',
         bio: '', city: 'Kanpur', area: '', interests: [],
     })
+    const maxBirthDate = (() => {
+        const date = new Date()
+        date.setFullYear(date.getFullYear() - 17)
+        return date.toISOString().split('T')[0]
+    })()
 
     const update = (k, v) => setForm({ ...form, [k]: v })
 
@@ -34,6 +39,7 @@ export default function Onboarding() {
     const handleSubmit = async () => {
         if (!form.fullName || !form.username) return toast.error('Name and username are required.')
         if (!form.dateOfBirth) return toast.error('Date of birth is required.')
+        if (form.dateOfBirth > maxBirthDate) return toast.error('You must be at least 17 years old.')
         if (form.username.length < 3) return toast.error('Username must be at least 3 characters.')
 
         setLoading(true)
@@ -88,7 +94,7 @@ export default function Onboarding() {
                         </div>
                         <div className="input-group" style={{ marginBottom: 16 }}>
                             <label>Date of Birth *</label>
-                            <input type="date" className="input-field" value={form.dateOfBirth} onChange={(e) => update('dateOfBirth', e.target.value)} />
+                            <input type="date" max={maxBirthDate} className="input-field" value={form.dateOfBirth} onChange={(e) => update('dateOfBirth', e.target.value)} />
                         </div>
                         <div className="input-group" style={{ marginBottom: 16 }}>
                             <label>Gender</label>
@@ -162,7 +168,7 @@ export default function Onboarding() {
                         </button>
                     )}
                     {step < 3 ? (
-                        <button className="btn btn-primary" onClick={() => setStep(step + 1)} disabled={!canNext()} style={{ flex: 1 }}>
+                        <button className="btn btn-primary" onClick={() => setStep(step + 1)} disabled={!canNext() || (step === 0 && form.dateOfBirth > maxBirthDate)} style={{ flex: 1 }}>
                             Next <ArrowRight size={16} />
                         </button>
                     ) : (

@@ -142,6 +142,9 @@ export default function PlanDetails() {
     const isFull = spotsLeft <= 0
     const isCancelled = plan.status === 'cancelled'
     const isClosed = plan.status === 'closed'
+    const maxBirthDate = new Date()
+    maxBirthDate.setFullYear(maxBirthDate.getFullYear() - 17)
+    const profileComplete = userProfile && [userProfile.fullName, userProfile.username, userProfile.dateOfBirth, userProfile.city].every((value) => String(value || '').trim()) && new Date(userProfile.dateOfBirth) <= maxBirthDate
 
     // Check if current user has requested or joined
     const myRequest = plan.userRequestStatus
@@ -318,6 +321,10 @@ export default function PlanDetails() {
                             ) : isFull ? (
                                 <button className="btn btn-secondary btn-block btn-lg" disabled>
                                     Plan is Full
+                                </button>
+                            ) : !profileComplete ? (
+                                <button className="btn btn-secondary btn-block btn-lg" onClick={() => navigate('/profile/edit')}>
+                                    Complete Profile to Join
                                 </button>
                             ) : (
                                 <button

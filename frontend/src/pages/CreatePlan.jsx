@@ -38,6 +38,14 @@ export default function CreatePlan() {
     const update = (k, v) => setForm({ ...form, [k]: v })
 
     const handleSubmit = async () => {
+        const maxBirthDate = new Date()
+        maxBirthDate.setFullYear(maxBirthDate.getFullYear() - 17)
+        const profileComplete = userProfile && [userProfile.fullName, userProfile.username, userProfile.dateOfBirth, userProfile.city].every((value) => String(value || '').trim()) && new Date(userProfile.dateOfBirth) <= maxBirthDate
+        if (!profileComplete) {
+            toast.error('Complete your profile before creating a plan.')
+            navigate('/profile/edit')
+            return
+        }
         setLoading(true)
         try {
             const res = await api.post('/plans', form)

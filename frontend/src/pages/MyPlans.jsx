@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import MobileHeader from '../components/MobileHeader'
@@ -18,6 +18,7 @@ export default function MyPlans() {
         incomingRequests: [],
         sentRequests: []
     })
+    const refreshInFlight = useRef(false)
 
     const handleDeletePlan = async (plan) => {
         if (!window.confirm(`Delete "${plan.title}"? This cannot be undone.`)) return
@@ -37,22 +38,17 @@ export default function MyPlans() {
     const handleRequestAction = async (requestId, action) => {
         try {
             await api.patch(`/join-requests/${requestId}`, { action })
-            const status = action === 'accept' ? 'accepted' : 'declined'
-            setData((current) => ({
-                ...current,
-                incomingRequests: current.incomingRequests.map((request) => (
-                    request.id === requestId ? { ...request, status } : request
-                ))
-            }))
+            await loadMyActivity()
         } catch (err) {
             console.error(`Failed to ${action} join request`, err)
             window.alert(err.response?.data?.detail || `Unable to ${action} this request.`)
         }
     }
 
-    useEffect(() => {
-        const loadMyActivity = async () => {
-            setLoading(true)
+    const loadMyActivity = async (showLoading = false) => {
+            if (refreshInFlight.current) return
+            refreshInFlight.current = true
+            if (showLoading) setLoading(true)
             try {
                 const [joinedRes, createdRes, incomingRes, sentRes] = await Promise.all([
                     api.get('/join-requests/my-plans?type=joined'),
@@ -70,12 +66,26 @@ export default function MyPlans() {
             } catch (err) {
                 console.error('Failed to load activity', err)
             } finally {
-                setLoading(false)
+                refreshInFlight.current = false
+                if (showLoading) setLoading(false)
             }
-        }
+    }
 
-        loadMyActivity()
+    useEffect(() => {
+        let active = true
+        loadMyActivity(true)
+        const interval = window.setInterval(() => {
+            if (active) loadMyActivity()
+        }, 5000)
+        return () => {
+            active = false
+            window.clearInterval(interval)
+        }
     }, [])
+
+    const pendingIncoming = data.incomingRequests.filter((request) => request.status === 'pending')
+    const pendingSent = data.sentRequests.filter((request) => request.status === 'pending')
+    const pendingCount = pendingIncoming.length + pendingSent.length
 
     return (
         <div className="page">
@@ -99,8 +109,8 @@ export default function MyPlans() {
                     className={`tab ${activeTab === 'requests' ? 'active' : ''}`}
                     onClick={() => setActiveTab('requests')}
                 >
-                    Requests {[...data.incomingRequests, ...data.sentRequests].filter(r => r.status === 'pending').length > 0 &&
-                        <span className="badge" style={{ marginLeft: 6 }}>{[...data.incomingRequests, ...data.sentRequests].filter(r => r.status === 'pending').length}</span>
+                    Requests {pendingCount > 0 &&
+                        <span className="badge" style={{ marginLeft: 6 }}>{pendingCount}</span>
                     }
                 </button>
             </div>
@@ -139,13 +149,13 @@ export default function MyPlans() {
                         />
                     )
                 ) : activeTab === 'requests' ? (
-                    data.incomingRequests.length > 0 || data.sentRequests.length > 0 ? (
+                    pendingIncoming.length > 0 || pendingSent.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-                            {data.incomingRequests.length > 0 && (
+                            {pendingIncoming.length > 0 && (
                                 <section>
-                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Requests to join your plans</h3>
+                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Requests Received</h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                        {data.incomingRequests.map((req) => (
+                                        {pendingIncoming.map((req) => (
                                             <div key={req.id}>
                                                 <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
                                                     {req.plan?.title || 'Your plan'}
@@ -160,11 +170,11 @@ export default function MyPlans() {
                                     </div>
                                 </section>
                             )}
-                            {data.sentRequests.length > 0 && (
+                            {pendingSent.length > 0 && (
                                 <section>
-                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Requests you sent</h3>
+                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>My Sent Requests</h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                        {data.sentRequests.map((req) => (
+                                        {pendingSent.map((req) => (
                                             <div key={req.id}>
                                                 <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
                                                     {req.plan?.title || 'Plan'}

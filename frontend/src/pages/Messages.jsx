@@ -40,17 +40,72 @@ export default function Messages() {
         return new Date(value).getTime() || 0
     }
 
+    const upsertConversation = (participant, lastMessage = null, lastMessageAt = null) => {
+        if (!participant?.id) return
+        setConversations((current) => {
+            const existing = current.find((conversation) => conversation.participantId === participant.id)
+            if (existing) {
+                return current.map((conversation) => conversation.participantId === participant.id
+                    ? { ...conversation, participant, lastMessage: lastMessage ?? conversation.lastMessage, lastMessageAt: lastMessageAt ?? conversation.lastMessageAt }
+                    : conversation)
+            }
+            return [{
+                id: [currentUser.uid, participant.id].sort().join('_'),
+                participantId: participant.id,
+                participant,
+                lastMessage,
+                lastMessageAt,
+                unreadCount: 0,
+                pinned: false,
+            }, ...current]
+        })
+    }
+
     useEffect(() => {
         const viewport = window.visualViewport
+        let layoutHeight = window.innerHeight
+        let isKeyboardOpen = false
+
         const updateViewportHeight = () => {
-            const height = viewport?.height || window.innerHeight
-            document.documentElement.style.setProperty('--joinly-viewport-height', `${height}px`)
+            const currentHeight = window.innerHeight
+            const vvHeight = viewport?.height || window.innerHeight
+            
+            // Detect if keyboard is open to freeze layout height
+            if (currentHeight < layoutHeight - 150 && window.innerWidth === document.documentElement.clientWidth) {
+                isKeyboardOpen = true
+            } else if (currentHeight >= layoutHeight) {
+                isKeyboardOpen = false
+                layoutHeight = currentHeight
+            } else if (currentHeight < layoutHeight && currentHeight > layoutHeight - 150) {
+                if (!isKeyboardOpen) layoutHeight = currentHeight
+            }
+
+            if (vvHeight < layoutHeight - 150) {
+                isKeyboardOpen = true
+            } else if (vvHeight >= layoutHeight - 150 && currentHeight === layoutHeight) {
+                isKeyboardOpen = false
+            }
+
+            document.documentElement.style.setProperty('--joinly-layout-height', `${layoutHeight}px`)
+
+            const offsetTop = viewport?.offsetTop || 0
+            const panel = document.querySelector('.chat-panel')
+            let overlap = 0
+            if (panel) {
+                const rect = panel.getBoundingClientRect()
+                // Calculate exact pixel overlap between the keyboard and the chat panel
+                overlap = Math.max(0, rect.bottom - (offsetTop + vvHeight))
+            }
+            document.documentElement.style.setProperty('--joinly-keyboard-overlap', `${overlap}px`)
         }
+        
         updateViewportHeight()
         viewport?.addEventListener('resize', updateViewportHeight)
+        viewport?.addEventListener('scroll', updateViewportHeight)
         window.addEventListener('resize', updateViewportHeight)
         return () => {
             viewport?.removeEventListener('resize', updateViewportHeight)
+            viewport?.removeEventListener('scroll', updateViewportHeight)
             window.removeEventListener('resize', updateViewportHeight)
         }
     }, [])
@@ -118,7 +173,9 @@ export default function Messages() {
             where('participants', 'array-contains', currentUser.uid),
         )
         const unsubscribeConversations = onSnapshot(conversationsQuery, (snapshot) => {
-            setConversations((current) => snapshot.docs.map((doc) => {
+            setConversations((current) => {
+                if (snapshot.empty && current.length > 0) return current
+                return snapshot.docs.map((doc) => {
                 const data = doc.data()
                 const participantId = data.participants?.find((id) => id !== currentUser.uid)
                 const existing = current.find((item) => item.participantId === participantId)
@@ -132,7 +189,8 @@ export default function Messages() {
                     unreadCount: data.unreadCounts?.[currentUser.uid] || 0,
                     pinned: existing?.pinned || false,
                 }
-            }).filter(Boolean).sort((first, second) => timestampValue(second.lastMessageAt) - timestampValue(first.lastMessageAt)))
+                }).filter(Boolean).sort((first, second) => timestampValue(second.lastMessageAt) - timestampValue(first.lastMessageAt))
+            })
         }, (error) => console.error('Conversation realtime listener failed', error))
         const blockedQuery = query(collection(db, 'blocked_users'), where('blockerId', '==', currentUser.uid))
         const unsubscribeBlocks = onSnapshot(blockedQuery, (snapshot) => {
@@ -183,6 +241,11 @@ export default function Messages() {
                 const response = await api.get(`/messages/${selectedUser.id}`)
                 setMessageAccess((current) => ({ ...current, status: 'accepted' }))
                 setMessages(response.data || [])
+                upsertConversation(
+                    selectedUser,
+                    response.data?.[response.data.length - 1]?.text || null,
+                    response.data?.[response.data.length - 1]?.createdAt || null,
+                )
             } catch (error) {
                 console.error('Failed to load messages', error)
                 setMessages([])
@@ -299,11 +362,7 @@ export default function Messages() {
             const response = await api.post(`/messages/${selectedUser.id}`, { text: text.trim() })
             setMessages((current) => [...current, response.data])
             setText('')
-            setConversations((current) => current.map((conversation) => (
-                conversation.participantId === selectedUser.id
-                    ? { ...conversation, lastMessage: response.data.text, lastMessageAt: response.data.createdAt }
-                    : conversation
-            )))
+            upsertConversation(selectedUser, response.data.text, response.data.createdAt)
         } catch (error) {
             console.error('Failed to send message', error)
             toast.error(error.response?.status === 429
@@ -536,17 +595,17 @@ export default function Messages() {
         .chat-composer button { flex: 0 0 46px; width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--color-primary); color: white; cursor: pointer; }
         .chat-composer button:disabled { opacity: .5; cursor: not-allowed; }
         @media (max-width: 767px) {
-                      .messages-page { height: var(--joinly-viewport-height, 100dvh); min-height: var(--joinly-viewport-height, 100dvh); overflow: hidden; overscroll-behavior: none; }
-                      .messages-layout { display: block; height: calc(var(--joinly-viewport-height, 100dvh) - 56px); min-height: 0; overflow: hidden; }
-          .conversation-panel { border-right: 0; padding: 12px 12px 80px; }
-          .contact-search { margin: 0 0 12px; }
-          .conversation-panel.has-selection { display: none; }
-                    .chat-panel { display: none; height: 100%; min-height: 0; }
-                    .chat-panel.open { display: flex; padding-bottom: 0; }
-                    .chat-header { padding: 10px 12px; min-height: 58px; }
-                    .chat-messages { padding: 14px 12px; }
-                    .chat-composer { padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
-          .chat-back { display: inline-flex; align-items: center; justify-content: center; }
+            .messages-page { height: var(--joinly-layout-height, 100dvh); min-height: var(--joinly-layout-height, 100dvh); overflow: hidden; overscroll-behavior: none; }
+            .messages-layout { display: block; height: calc(var(--joinly-layout-height, 100dvh) - 56px - 64px - env(safe-area-inset-bottom, 0px)); min-height: 0; overflow: hidden; position: relative; }
+            .conversation-panel { border-right: 0; padding: 12px 12px 80px; }
+            .contact-search { margin: 0 0 12px; }
+            .conversation-panel.has-selection { display: none; }
+            .chat-panel { display: none; height: 100%; min-height: 0; position: relative; }
+            .chat-panel.open { display: flex; padding-bottom: 0; }
+            .chat-header { padding: 10px 12px; min-height: 58px; }
+            .chat-messages { padding: 14px 12px; padding-bottom: calc(14px + var(--joinly-keyboard-overlap, 0px)); transition: padding-bottom 0.1s ease-out; }
+            .chat-composer { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 12px; padding-bottom: 10px; transform: translateY(calc(var(--joinly-keyboard-overlap, 0px) * -1)); transition: transform 0.1s ease-out; z-index: 20; }
+            .chat-back { display: inline-flex; align-items: center; justify-content: center; }
         }
       `}</style>
         </div>

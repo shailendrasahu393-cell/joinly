@@ -71,6 +71,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /blocked_users/{blockId} {
+      allow read: if signedIn() && resource.data.blockerId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.blockerId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.blockerId == request.auth.uid;
+    }
+
+    match /chat_preferences/{preferenceId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /chat_delete_requests/{requestId} {
+      allow read: if signedIn()
+        && (resource.data.requesterId == request.auth.uid
+          || resource.data.recipientId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.requesterId == request.auth.uid;
+      allow update: if signedIn() && resource.data.recipientId == request.auth.uid;
+    }
+
     // Deny every collection not explicitly listed above.
     match /{document=**} {
       allow read, write: if false;

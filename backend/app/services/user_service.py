@@ -4,6 +4,25 @@ from ..schemas.user import UserCreate, UserUpdate
 
 class UserService:
     @staticmethod
+    def is_at_least_17(date_of_birth: str):
+        try:
+            birth_date = datetime.strptime(str(date_of_birth), '%Y-%m-%d').date()
+            today = datetime.utcnow().date()
+            seventeenth_birthday = today.replace(year=today.year - 17)
+            return birth_date <= seventeenth_birthday
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def is_profile_complete(user: dict):
+        if not user:
+            return False
+        return (
+            all(str(user.get(field, '')).strip() for field in ('fullName', 'username', 'dateOfBirth', 'city'))
+            and UserService.is_at_least_17(user.get('dateOfBirth'))
+        )
+
+    @staticmethod
     def is_blocked_by(profile_owner_id: str, viewer_id: str):
         if db is None or not profile_owner_id or not viewer_id: return False
         return db.collection('blocked_users').document(f'{profile_owner_id}_{viewer_id}').get().exists

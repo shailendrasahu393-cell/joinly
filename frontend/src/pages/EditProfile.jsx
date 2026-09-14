@@ -13,6 +13,11 @@ export default function EditProfile() {
     const { userProfile, refreshProfile } = useAuth()
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState({ fullName: '', username: '', dateOfBirth: '', gender: '', bio: '', city: '', area: '', interests: [], profileImage: '' })
+    const maxBirthDate = (() => {
+        const date = new Date()
+        date.setFullYear(date.getFullYear() - 17)
+        return date.toISOString().split('T')[0]
+    })()
 
     useEffect(() => {
         if (userProfile) setForm((current) => ({ ...current, ...userProfile, interests: userProfile.interests || [] }))
@@ -26,6 +31,7 @@ export default function EditProfile() {
     const handleSubmit = async (event) => {
         event.preventDefault()
         if (!form.fullName || !form.username || !form.dateOfBirth) return toast.error('Name, username and date of birth are required.')
+        if (form.dateOfBirth > maxBirthDate) return toast.error('You must be at least 17 years old.')
         setLoading(true)
         try {
             await api.patch('/users/me', form)
@@ -49,7 +55,7 @@ export default function EditProfile() {
                     <div className="input-group"><label>Profile avatar</label><AvatarPicker value={form.profileImage} onChange={(value) => update('profileImage', value)} /></div>
                     <div className="input-group"><label>Full Name *</label><input className="input-field" value={form.fullName} onChange={(e) => update('fullName', e.target.value)} /></div>
                     <div className="input-group"><label>Username *</label><input className="input-field" value={form.username} onChange={(e) => update('username', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} /></div>
-                    <div className="input-group"><label>Date of Birth *</label><input type="date" className="input-field" value={form.dateOfBirth || ''} onChange={(e) => update('dateOfBirth', e.target.value)} /></div>
+                    <div className="input-group"><label>Date of Birth *</label><input type="date" max={maxBirthDate} className="input-field" value={form.dateOfBirth || ''} onChange={(e) => update('dateOfBirth', e.target.value)} /></div>
                     <div className="input-group"><label>Gender</label><select className="input-field" value={form.gender || ''} onChange={(e) => update('gender', e.target.value)}><option value="">Select gender</option>{GENDER_OPTIONS.map((option) => <option key={option}>{option}</option>)}</select></div>
                     <div className="input-group"><label>Bio</label><textarea className="input-field" rows={4} maxLength={200} value={form.bio || ''} onChange={(e) => update('bio', e.target.value)} /><small>{(form.bio || '').length}/200</small></div>
                     <div className="input-group"><label>City *</label><input className="input-field" value={form.city || ''} onChange={(e) => update('city', e.target.value)} /></div>

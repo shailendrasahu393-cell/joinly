@@ -44,6 +44,9 @@ def get_user_by_id(user_id: str, current_user: dict = Depends(get_current_user))
 
 @router.patch("/me")
 def update_my_profile(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
+    if user_update.dateOfBirth is not None and not UserService.is_at_least_17(user_update.dateOfBirth):
+        raise HTTPException(status_code=400, detail="You must be at least 17 years old to complete your profile")
+
     # Check username uniqueness if they are updating it
     if user_update.username:
         existing = UserService.get_user_by_username(user_update.username)

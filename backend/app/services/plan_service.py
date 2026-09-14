@@ -13,15 +13,16 @@ class PlanService:
         
         # Enrich with host data (in NoSQL we might denormalize this, but for MVP we fetch it)
         host = UserService.get_user(plan_data.get("hostId"))
-        if host:
-            plan_data["host"] = {
-                "id": host.get("id"),
-                "fullName": host.get("fullName"),
-                "username": host.get("username"),
-                "profileImage": host.get("profileImage"),
-                "age": host.get("age"),
-                "gender": host.get("gender")
-            }
+        if not host:
+            return None
+        plan_data["host"] = {
+            "id": host.get("id"),
+            "fullName": host.get("fullName"),
+            "username": host.get("username"),
+            "profileImage": host.get("profileImage"),
+            "age": host.get("age"),
+            "gender": host.get("gender")
+        }
             
         # Enrich with user request status if requested
         if current_uid and db is not None:
@@ -131,5 +132,44 @@ class PlanService:
         # Sort by recently created (safest memory sort for small result sets)
         results.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
         
-        # Enrich and enforce privacy blocks (future)
-        return [PlanService._enrich_plan(r, current_uid) for r in results]
+        host_cache = {}
+        request_cache = {}
+
+        # Pre-fetch join requests for this user if we have a uid
+        if current_uid and results:
+            reqs = db.collection('join_requests') \
+                .where('requesterId', '==', current_uid).stream()
+            for req_doc in reqs:
+                req_data = req_doc.to_dict()
+                request_cache[req_data['planId']] = req_data.get('status')
+
+        enriched_results = []
+        for plan_data in results:
+            hid = plan_data.get("hostId")
+            if hid:
+                if hid not in host_cache:
+                    host_cache[hid] = UserService.get_user(hid)
+                host = host_cache[hid]
+                if host:
+                    plan_data["host"] = {
+                        "id": host.get("id"),
+                        "fullName": host.get("fullName"),
+                        "username": host.get("username"),
+                        "profileImage": host.get("profileImage"),
+                        "age": host.get("age"),
+                        "gender": host.get("gender")
+                    }
+                else:
+                    continue # Skip plans with no valid host
+            
+            if current_uid:
+                status = request_cache.get(plan_data["id"])
+                if status:
+                    plan_data["userRequestStatus"] = {
+                        "accept": "accepted",
+                        "decline": "declined"
+                    }.get(status, status)
+            
+            enriched_results.append(plan_data)
+            
+        return enriched_results

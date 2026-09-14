@@ -170,28 +170,56 @@ class MessageService:
     def get_conversations(uid: str):
         if db is None: return []
 
-        docs = db.collection('conversations').where('participants', 'array_contains', uid).stream()
+        docs = list(db.collection('conversations').where('participants', 'array_contains', uid).stream())
+        if not docs: return []
+        
+        participant_ids = [next((item for item in d.to_dict().get('participants', []) if item != uid), '') for d in docs]
+        
+        # Bulk fetch preferences
+        pref_refs = [db.collection('chat_preferences').document(f'{uid}_{pid}') for pid in participant_ids if pid]
+        pref_docs = db.get_all(pref_refs) if pref_refs else []
+        prefs_map = {doc.id: doc for doc in pref_docs}
+
+        # Bulk fetch users
+        user_refs = [db.collection('users').document(pid) for pid in set(participant_ids) if pid]
+        user_docs = db.get_all(user_refs) if user_refs else []
+        user_cache = {doc.id: doc.to_dict() for doc in user_docs if doc.exists}
+
+        # Bulk fetch blocked status
+        blocked_refs = []
+        for pid in set(participant_ids):
+            if pid:
+                blocked_refs.append(db.collection('blocked_users').document(f'{uid}_{pid}'))
+                blocked_refs.append(db.collection('blocked_users').document(f'{pid}_{uid}'))
+        blocked_docs = db.get_all(blocked_refs) if blocked_refs else []
+        blocked_map = {doc.id: doc.exists for doc in blocked_docs}
+
         results = []
-        for doc in docs:
+        for doc, pid in zip(docs, participant_ids):
             data = doc.to_dict()
-            participant_id = next((item for item in data.get('participants', []) if item != uid), '')
-            if UserService.is_blocked(uid, participant_id):
+            if not pid: continue
+            
+            if blocked_map.get(f'{uid}_{pid}') or blocked_map.get(f'{pid}_{uid}'):
                 continue
-            preference_doc = db.collection('chat_preferences').document(f'{uid}_{participant_id}').get()
-            if preference_doc.exists and preference_doc.to_dict().get('hidden', False):
+                
+            pref_doc = prefs_map.get(f'{uid}_{pid}')
+            if pref_doc and pref_doc.exists and pref_doc.to_dict().get('hidden', False):
                 continue
-            participant = UserService.get_user(participant_id)
+                
+            participant = user_cache.get(pid)
             if participant:
                 participant.pop('email', None)
+                
             results.append({
                 'id': doc.id,
-                'participantId': participant_id,
+                'participantId': pid,
                 'participant': participant,
                 'lastMessage': data.get('lastMessage'),
                 'lastMessageAt': data.get('lastMessageAt'),
                 'unreadCount': data.get('unreadCounts', {}).get(uid, 0),
-                'pinned': preference_doc.to_dict().get('pinned', False) if preference_doc.exists else False,
+                'pinned': pref_doc.to_dict().get('pinned', False) if (pref_doc and pref_doc.exists) else False,
             })
+            
         results.sort(key=lambda item: item.get('lastMessageAt') or datetime.min, reverse=True)
         results.sort(key=lambda item: item.get('pinned', False), reverse=True)
         return results
@@ -308,6 +336,12 @@ class MessageService:
             'lastMessage': clean_text,
             'lastMessageAt': now,
             'unreadCounts': unread_counts,
+        }, merge=True)
+        db.collection('chat_preferences').document(f'{uid}_{recipient_uid}').set({
+            'userId': uid,
+            'otherUserId': recipient_uid,
+            'hidden': False,
+            'updatedAt': now,
         }, merge=True)
         return message
 
