@@ -611,8 +611,8 @@ export default function Messages() {
             .conversation-panel.has-selection { display: none; }
             .chat-panel { display: none; height: 100%; min-height: 0; position: relative; }
             .chat-panel.open { display: flex; padding-bottom: 0; }
-            .chat-header { padding: 10px 12px; min-height: 58px; }
-            .chat-messages { padding: 14px 12px; padding-bottom: calc(14px + var(--joinly-keyboard-overlap, 0px)); transition: padding-bottom 0.1s ease-out; }
+            .chat-header { position: absolute; top: 0; left: 0; right: 0; z-index: 50; padding: 10px 12px; min-height: 58px; }
+            .chat-messages { padding: 14px 12px; padding-top: calc(58px + 14px); padding-bottom: calc(14px + var(--joinly-keyboard-overlap, 0px)); transition: padding-bottom 0.1s ease-out; }
             .chat-composer { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 12px; padding-bottom: 10px; transform: translateY(calc(var(--joinly-keyboard-overlap, 0px) * -1)); transition: transform 0.1s ease-out; z-index: 20; }
             .chat-back { display: inline-flex; align-items: center; justify-content: center; }
         }
