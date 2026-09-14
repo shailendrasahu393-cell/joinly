@@ -129,3 +129,21 @@ class JoinRequestService:
             if p.exists: r['plan'] = p.to_dict()
             
         return results
+
+    @staticmethod
+    def get_incoming_requests(host_id: str):
+        if db is None: return []
+
+        docs = db.collection('join_requests').where('hostId', '==', host_id).stream()
+        results = [d.to_dict() for d in docs]
+
+        for request in results:
+            user = UserService.get_user(request.get('requesterId'))
+            if user:
+                request['requester'] = user
+            plan = db.collection('plans').document(request.get('planId')).get()
+            if plan.exists:
+                request['plan'] = plan.to_dict()
+
+        results.sort(key=lambda item: item.get('createdAt', ''), reverse=True)
+        return results

@@ -4,11 +4,13 @@ import { useAuth } from '../context/AuthContext'
 import { logOut } from '../services/auth'
 import UserAvatar from './UserAvatar'
 import useUnreadMessages from '../hooks/useUnreadMessages'
+import useUnreadNotifications from '../hooks/useUnreadNotifications'
 
 export default function Navbar() {
     const { currentUser, userProfile } = useAuth()
     const navigate = useNavigate()
     const unreadCount = useUnreadMessages()
+    const unreadNotificationCount = useUnreadNotifications()
 
     const handleLogout = async () => {
         await logOut()
@@ -33,6 +35,7 @@ export default function Navbar() {
                         <div className="nav-actions">
                             <NavLink to="/notifications" className="nav-icon-btn" aria-label="Notifications">
                                 <Bell size={20} />
+                              {unreadNotificationCount > 0 && <span className="unread-dot" aria-label={`${unreadNotificationCount} unread notifications`} />}
                             </NavLink>
                             <NavLink to="/messages" className="nav-icon-btn" aria-label="Messages">
                               <MessageCircle size={20} />

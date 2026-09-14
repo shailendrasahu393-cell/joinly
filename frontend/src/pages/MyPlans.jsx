@@ -33,6 +33,21 @@ export default function MyPlans() {
         }
     }
 
+    const handleRequestAction = async (requestId, action) => {
+        try {
+            await api.patch(`/join-requests/${requestId}`, { action })
+            setData((current) => ({
+                ...current,
+                requests: current.requests.map((request) => (
+                    request.id === requestId ? { ...request, status: action } : request
+                ))
+            }))
+        } catch (err) {
+            console.error(`Failed to ${action} join request`, err)
+            window.alert(err.response?.data?.detail || `Unable to ${action} this request.`)
+        }
+    }
+
     useEffect(() => {
         const loadMyActivity = async () => {
             setLoading(true)
@@ -40,7 +55,7 @@ export default function MyPlans() {
                 const [joinedRes, createdRes, reqsRes] = await Promise.all([
                     api.get('/join-requests/my-plans?type=joined'),
                     api.get('/join-requests/my-plans?type=created'),
-                    api.get('/join-requests/me')
+                    api.get('/join-requests/incoming')
                 ])
 
                 setData({
@@ -122,28 +137,16 @@ export default function MyPlans() {
                 ) : activeTab === 'requests' ? (
                     data.requests.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            {/* Note: This assumes API returns enriched requests with plan info */}
                             {data.requests.map((req) => (
-                                <div key={req.id} className="card" style={{ padding: '0', overflow: 'hidden' }}>
-                                    <div style={{ background: 'var(--color-bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--color-border-light)' }}>
-                                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-                                            Requested to join
-                                        </div>
-                                        <div style={{ fontWeight: 600, fontSize: 16 }}>{req.plan?.title || 'A plan'}</div>
+                                <div key={req.id}>
+                                    <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                        {req.plan?.title || 'Your plan'}
                                     </div>
-                                    <div style={{ padding: 16 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <div style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>
-                                                Status: <span style={{
-                                                    fontWeight: 600,
-                                                    color: req.status === 'accepted' ? 'var(--color-success)' : req.status === 'declined' ? 'var(--color-danger)' : 'var(--color-warning)'
-                                                }}>{req.status.charAt(0).toUpperCase() + req.status.slice(1)}</span>
-                                            </div>
-                                            <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/plans/${req.planId}`)}>
-                                                View Plan
-                                            </button>
-                                        </div>
-                                    </div>
+                                    <JoinRequestCard
+                                        request={req}
+                                        onAccept={(id) => handleRequestAction(id, 'accept')}
+                                        onDecline={(id) => handleRequestAction(id, 'decline')}
+                                    />
                                 </div>
                             ))}
                         </div>

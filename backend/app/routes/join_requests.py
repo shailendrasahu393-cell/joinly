@@ -21,6 +21,10 @@ def handle_request(req_id: str, action_data: JoinRequestAction, current_user: di
 def get_my_requests(current_user: dict = Depends(get_current_user)):
     return JoinRequestService.get_my_requests(current_user["uid"])
 
+@router.get("/incoming")
+def get_incoming_requests(current_user: dict = Depends(get_current_user)):
+    return JoinRequestService.get_incoming_requests(current_user["uid"])
+
 # Temporary route to fetch "Joined" and "Created" for the MyPlans view
 @router.get("/my-plans")
 def get_my_plans_temp(type: str = "joined", current_user: dict = Depends(get_current_user)):
@@ -32,12 +36,13 @@ def get_my_plans_temp(type: str = "joined", current_user: dict = Depends(get_cur
         # First get accepted requests
         from ..services.firebase import db
         if db is None: return []
-        docs = db.collection('join_requests') \
-            .where('requesterId', '==', uid) \
-            .where('status', '==', 'accepted') \
-            .stream()
-            
-        plan_ids = [d.to_dict().get("planId") for d in docs]
+        docs = db.collection('join_requests').where('requesterId', '==', uid).stream()
+        plan_ids = [
+            data.get("planId")
+            for doc in docs
+            for data in [doc.to_dict()]
+            if data.get("status") == "accepted"
+        ]
         if not plan_ids: return []
         
         # In MVP, fetching individually to avoid "in" clauses larger than config permits

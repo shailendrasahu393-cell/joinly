@@ -50,3 +50,9 @@ class NotificationService:
             return False
         doc_ref.update({"read": True})
         return True
+
+    @staticmethod
+    def get_unread_count(user_id: str):
+        if db is None: return 0
+        docs = db.collection('notifications').where('userId', '==', user_id).stream()
+        return sum(1 for doc in docs if not doc.to_dict().get('read', False))

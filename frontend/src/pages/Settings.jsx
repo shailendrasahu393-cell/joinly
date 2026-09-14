@@ -1,12 +1,24 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { logOut } from '../services/auth'
 import MobileHeader from '../components/MobileHeader'
-import { LogOut, User, Shield, Info, ChevronRight, Edit3 } from 'lucide-react'
+import { LogOut, User, Shield, Info, ChevronRight, Edit3, Bell } from 'lucide-react'
+import { canUseBrowserNotifications, requestBrowserNotificationPermission } from '../utils/notifications'
 
 export default function Settings() {
     const { userProfile } = useAuth()
     const navigate = useNavigate()
+    const [notificationPermission, setNotificationPermission] = useState('unsupported')
+
+    useEffect(() => {
+        if (canUseBrowserNotifications()) setNotificationPermission(Notification.permission)
+    }, [])
+
+    const enableNotifications = async () => {
+        const permission = await requestBrowserNotificationPermission()
+        setNotificationPermission(permission)
+    }
 
     const handleLogout = async () => {
         await logOut()
@@ -41,6 +53,11 @@ export default function Settings() {
                     <SettingRow icon={Edit3} title="Edit Profile" onClick={() => navigate('/profile/edit')} />
                     <SettingRow icon={User} title="Account Details" onClick={() => { }} />
                     <SettingRow icon={Shield} title="Privacy & Safety" onClick={() => { }} />
+                    <SettingRow
+                        icon={Bell}
+                        title={notificationPermission === 'granted' ? 'Notifications enabled' : 'Enable notifications'}
+                        onClick={enableNotifications}
+                    />
                 </div>
 
                 <div style={{ marginBottom: 32 }}>
