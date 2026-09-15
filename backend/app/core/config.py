@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     MESSAGE_DAILY_LIMIT: int = int(os.getenv("MESSAGE_DAILY_LIMIT", "100"))
     MESSAGE_MAX_LENGTH: int = int(os.getenv("MESSAGE_MAX_LENGTH", "2000"))
     MESSAGE_HISTORY_LIMIT: int = int(os.getenv("MESSAGE_HISTORY_LIMIT", "100"))
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_EMAIL: str = os.getenv("SMTP_EMAIL", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
 
     class Config:
         env_file = BACKEND_DIR / ".env"
