@@ -627,6 +627,10 @@ export default function Messages() {
                 height: var(--joinly-vv-height, 100dvh); 
                 z-index: 100;
                 background: var(--color-surface);
+                padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+            }
+            body.keyboard-open .chat-panel.open {
+                padding-bottom: 0;
             }
             .chat-header { 
                 position: relative; 
@@ -646,8 +650,11 @@ export default function Messages() {
             .chat-composer { 
                 position: relative; 
                 flex: 0 0 auto; 
-                padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); 
+                padding: 10px 12px; 
                 z-index: 20; 
+            }
+            body.keyboard-open .chat-composer {
+                padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
             }
             .chat-back { display: inline-flex; align-items: center; justify-content: center; }
         }
