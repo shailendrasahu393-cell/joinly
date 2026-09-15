@@ -86,6 +86,11 @@ export default function Messages() {
                 isKeyboardOpen = false
             }
 
+            const vvOffset = viewport?.offsetTop || 0
+
+            // Expose exact visual viewport metrics for the fixed chat panel
+            document.documentElement.style.setProperty('--joinly-vv-height', `${vvHeight}px`)
+            document.documentElement.style.setProperty('--joinly-vv-offset', `${vvOffset}px`)
             document.documentElement.style.setProperty('--joinly-layout-height', `${layoutHeight}px`)
 
             if (isKeyboardOpen) {
@@ -93,24 +98,26 @@ export default function Messages() {
             } else {
                 document.body.classList.remove('keyboard-open')
             }
-
-            const offsetTop = viewport?.offsetTop || 0
-            const panel = document.querySelector('.chat-panel')
-            let overlap = 0
-            if (panel) {
-                const rect = panel.getBoundingClientRect()
-                // Calculate exact pixel overlap between the keyboard and the chat panel
-                overlap = Math.max(0, rect.bottom - (offsetTop + vvHeight))
-            }
-            document.documentElement.style.setProperty('--joinly-keyboard-overlap', `${overlap}px`)
         }
         
         updateViewportHeight()
         viewport?.addEventListener('resize', updateViewportHeight)
         viewport?.addEventListener('scroll', updateViewportHeight)
         window.addEventListener('resize', updateViewportHeight)
+        
+        // Prevent body scrolling while chat is open
+        const preventBodyScroll = () => {
+            if (document.querySelector('.chat-panel.open')) {
+                document.body.style.overflow = 'hidden'
+            } else {
+                document.body.style.overflow = ''
+            }
+        }
+        preventBodyScroll()
+
         return () => {
             document.body.classList.remove('keyboard-open')
+            document.body.style.overflow = ''
             viewport?.removeEventListener('resize', updateViewportHeight)
             viewport?.removeEventListener('scroll', updateViewportHeight)
             window.removeEventListener('resize', updateViewportHeight)
@@ -609,11 +616,39 @@ export default function Messages() {
             .conversation-panel { border-right: 0; padding: 12px 12px 80px; }
             .contact-search { margin: 0 0 12px; }
             .conversation-panel.has-selection { display: none; }
-            .chat-panel { display: none; height: 100%; min-height: 0; position: relative; }
-            .chat-panel.open { display: flex; padding-bottom: 0; }
-            .chat-header { position: absolute; top: 0; left: 0; right: 0; z-index: 50; padding: 10px 12px; min-height: 58px; }
-            .chat-messages { padding: 14px 12px; padding-top: calc(58px + 14px); padding-bottom: calc(14px + var(--joinly-keyboard-overlap, 0px)); transition: padding-bottom 0.1s ease-out; }
-            .chat-composer { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 12px; padding-bottom: 10px; transform: translateY(calc(var(--joinly-keyboard-overlap, 0px) * -1)); transition: transform 0.1s ease-out; z-index: 20; }
+            .chat-panel { display: none; }
+            .chat-panel.open { 
+                display: flex; 
+                flex-direction: column;
+                position: fixed; 
+                top: var(--joinly-vv-offset, 0px); 
+                left: 0; 
+                right: 0; 
+                height: var(--joinly-vv-height, 100dvh); 
+                z-index: 100;
+                background: var(--color-surface);
+            }
+            .chat-header { 
+                position: relative; 
+                flex: 0 0 auto; 
+                z-index: 50; 
+                padding: 10px 12px; 
+                min-height: 58px; 
+            }
+            .chat-messages { 
+                flex: 1 1 auto; 
+                min-height: 0; 
+                padding: 14px 12px; 
+                overflow-y: auto; 
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+            }
+            .chat-composer { 
+                position: relative; 
+                flex: 0 0 auto; 
+                padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); 
+                z-index: 20; 
+            }
             .chat-back { display: inline-flex; align-items: center; justify-content: center; }
         }
       `}</style>
