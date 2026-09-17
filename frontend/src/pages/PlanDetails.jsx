@@ -385,7 +385,7 @@ export default function PlanDetails() {
 
             <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Report Plan">
                 <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
-                    Reporting is coming soon. Please rely on standard safety practices.
+                    To report this plan or its host, please email <a href={`mailto:joinly.support@gmail.com?subject=Report%20Plan:%20${plan.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>joinly.support@gmail.com</a> with the details.
                 </p>
                 <button className="btn btn-secondary btn-block" onClick={() => setShowReportModal(false)}>Close</button>
             </Modal>

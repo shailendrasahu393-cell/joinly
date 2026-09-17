@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, LogOut, MessageCircle } from 'lucide-react'
+import { Bell, LogOut, MessageCircle, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { logOut } from '../services/auth'
 import UserAvatar from './UserAvatar'
@@ -52,9 +52,17 @@ export default function Navbar() {
                     </>
                 ) : (
                     <div className="nav-actions">
-                    <NavLink to="/about" className="nav-about-link">About JOINLY</NavLink>
-                        <NavLink to="/login" className="btn btn-ghost btn-sm">Log in</NavLink>
-                        <NavLink to="/signup" className="btn btn-primary btn-sm">Sign up</NavLink>
+                        <NavLink to="/about" className="nav-about-link" style={{ marginRight: 8 }}>About</NavLink>
+                        <NavLink to="/login" className="nav-avatar-link" aria-label="Log in or Sign up">
+                            <div style={{
+                                width: 32, height: 32, borderRadius: '50%',
+                                background: 'var(--color-primary-light)',
+                                color: 'var(--color-primary-dark)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <User size={18} />
+                            </div>
+                        </NavLink>
                     </div>
                 )}
             </div>
@@ -62,13 +70,18 @@ export default function Navbar() {
               {!currentUser && (
                 <div className={`public-mobile-nav ${location.pathname === '/about' ? 'public-mobile-nav-about' : ''}`}>
                   <NavLink to="/" className="public-mobile-brand">JOINLY</NavLink>
-                  <NavLink to="/about" className="public-mobile-about">About JOINLY</NavLink>
                   <div className="public-mobile-actions">
-                    {location.pathname !== '/' && location.pathname !== '/about' && (
-                      <button onClick={() => navigate('/')} className="public-mobile-back" aria-label="Back to home">Back</button>
-                    )}
-                    <NavLink to="/login" className="btn btn-ghost btn-sm">Log in</NavLink>
-                    <NavLink to="/signup" className="btn btn-primary btn-sm">Sign up</NavLink>
+                    <NavLink to="/about" className="public-mobile-about" style={{ marginRight: 8 }}>About</NavLink>
+                    <NavLink to="/login" className="nav-avatar-link" aria-label="Log in or Sign up">
+                        <div style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'var(--color-primary-light)',
+                            color: 'var(--color-primary-dark)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <User size={18} />
+                        </div>
+                    </NavLink>
                   </div>
                 </div>
               )}
@@ -170,8 +183,6 @@ export default function Navbar() {
         .public-mobile-brand { color: var(--color-primary); font-size: 20px; font-weight: 800; text-decoration: none; }
         .public-mobile-about { color: var(--color-text-secondary); font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap; }
         .public-mobile-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-        .public-mobile-back { padding: 7px 8px; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-        .public-mobile-back:hover { color: var(--color-primary); }
 
         @media (min-width: 1024px) {
           .public-mobile-nav { display: none; }

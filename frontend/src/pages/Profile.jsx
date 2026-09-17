@@ -213,7 +213,7 @@ export default function Profile() {
             <Modal isOpen={showMenu} onClose={() => setShowMenu(false)} title="Profile actions">
                 <div style={{ display: 'grid', gap: 8 }}>
                     <button className="btn btn-secondary btn-block" onClick={() => { handleShare(); setShowMenu(false) }}><Share2 size={17} /> Share Profile</button>
-                    <button className="btn btn-secondary btn-block" onClick={() => { toast.info('Reporting coming soon.'); setShowMenu(false) }}><AlertTriangle size={17} /> Report User</button>
+                    <button className="btn btn-secondary btn-block" onClick={() => { window.location.href = `mailto:joinly.support@gmail.com?subject=Report%20User:%20${profile.username || profile.id}`; setShowMenu(false) }}><AlertTriangle size={17} /> Report User</button>
                     <button className="btn btn-secondary btn-block" onClick={toggleBlock}><Ban size={17} /> {blocked ? 'Unblock User' : 'Block User'}</button>
                 </div>
             </Modal>

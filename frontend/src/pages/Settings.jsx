@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { changePassword, logOut, resetPassword, reauthenticateUser } from '../services/auth'
 import MobileHeader from '../components/MobileHeader'
-import { LogOut, User, Shield, Info, ChevronRight, Edit3, Bell, LockKeyhole, Ban, Trash2, AlertTriangle } from 'lucide-react'
+import { LogOut, User, Shield, Info, ChevronRight, Edit3, Bell, LockKeyhole, Ban, Trash2, AlertTriangle, HelpCircle } from 'lucide-react'
 import Modal from '../components/Modal'
 import { useToast } from '../context/ToastContext'
 import { canUseBrowserNotifications, requestBrowserNotificationPermission } from '../utils/notifications'
@@ -120,6 +120,7 @@ export default function Settings() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
                         App
                     </div>
+                    <SettingRow icon={HelpCircle} title="Help & Support" onClick={() => window.location.href = 'mailto:joinly.support@gmail.com?subject=JOINLY%20Support'} />
                     <SettingRow icon={Info} title="About JOINLY" onClick={() => navigate('/about')} />
                 </div>
 

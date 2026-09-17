@@ -5,7 +5,7 @@ import { ArrowLeft, Heart, ShieldCheck, Sparkles, LockKeyhole, Code2, Users, Map
 
 const developer = {
     name: 'Shailendra Sahu',
-    url: 'https://www.linkedin.com/in/shailendrasahu-/'
+    url: 'mailto:shailendrasahu393@gmail.com'
 }
 
 const Section = ({ id, icon: Icon, title, children }) => (
@@ -74,7 +74,7 @@ export default function About() {
                 <Section icon={Heart} title="Made with care">
                     <p>JOINLY is developed by <a className="about-link" href={developer.url} target="_blank" rel="noreferrer">{developer.name}</a> to make everyday plans feel a little more social.</p>
                     <a className="about-contact" href={developer.url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Connect with the developer</a>
-                    <p className="about-bug-note">Found a bug? <a className="about-link" href="mailto:shailendrasahu393@gmail.com">Mail us</a></p>
+                    <p className="about-bug-note">Found a bug or need help? <a className="about-link" href="mailto:joinly.support@gmail.com">Contact Support</a></p>
                 </Section>
 
                 <p className="about-footer">JOINLY · Version 1.0</p>
