@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getGoogleAuthErrorMessage, logIn, logInWithGoogle, resetPassword } from '../services/auth'
+import { getGoogleAuthErrorMessage, logIn, logInWithGoogle, resetPassword, hasGoogleProvider } from '../services/auth'
 import { useToast } from '../context/ToastContext'
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
@@ -21,7 +21,7 @@ export default function Login() {
         setLoading(true)
         try {
             const result = await logIn(email, password)
-            if (result.user && !result.user.emailVerified) {
+            if (result.user && !result.user.emailVerified && !hasGoogleProvider(result.user)) {
                 toast.info('Please verify your email to continue.')
                 navigate('/verify-email')
             } else {

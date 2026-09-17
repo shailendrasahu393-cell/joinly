@@ -26,7 +26,8 @@ import Messages from './pages/Messages'
 import BlockedUsers from './pages/BlockedUsers'
 
 export default function App() {
-    const { currentUser } = useAuth()
+    const { currentUser, userProfile } = useAuth()
+    const isProfileComplete = userProfile?.username
     const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem('joinly-splash-seen') !== 'true')
 
     useEffect(() => {
@@ -61,24 +62,24 @@ export default function App() {
 
                 {/* Protected Routes */}
                 <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-                <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-                <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-                <Route path="/create" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
-                <Route path="/plans/:planId" element={<ProtectedRoute><PlanDetails /></ProtectedRoute>} />
-                <Route path="/my-plans" element={<ProtectedRoute><MyPlans /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                <Route path="/profile/:username" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/blocked-users" element={<ProtectedRoute><BlockedUsers /></ProtectedRoute>} />
+                <Route path="/home" element={<ProtectedRoute requireProfileSetup><Home /></ProtectedRoute>} />
+                <Route path="/discover" element={<ProtectedRoute requireProfileSetup><Discover /></ProtectedRoute>} />
+                <Route path="/create" element={<ProtectedRoute requireProfileSetup><CreatePlan /></ProtectedRoute>} />
+                <Route path="/plans/:planId" element={<ProtectedRoute requireProfileSetup><PlanDetails /></ProtectedRoute>} />
+                <Route path="/my-plans" element={<ProtectedRoute requireProfileSetup><MyPlans /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute requireProfileSetup><Notifications /></ProtectedRoute>} />
+                <Route path="/messages" element={<ProtectedRoute requireProfileSetup><Messages /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute requireProfileSetup><Profile /></ProtectedRoute>} />
+                <Route path="/profile/:username" element={<ProtectedRoute requireProfileSetup><Profile /></ProtectedRoute>} />
+                <Route path="/profile/edit" element={<ProtectedRoute requireProfileSetup><EditProfile /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute requireProfileSetup><Settings /></ProtectedRoute>} />
+                <Route path="/blocked-users" element={<ProtectedRoute requireProfileSetup><BlockedUsers /></ProtectedRoute>} />
 
                 {/* Fallback */}
                 <Route path="*" element={<Landing />} />
             </Routes>
 
-            {currentUser && <MobileBottomNav />}
+            {currentUser && isProfileComplete && <MobileBottomNav />}
         </>
     )
 }

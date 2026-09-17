@@ -20,10 +20,8 @@ export function AuthProvider({ children }) {
                 const emailNotVerified = isEmailPasswordUser && !user.emailVerified
                 setNeedsEmailVerification(emailNotVerified)
 
-                // Check if Google user needs password linking
-                const isGoogleUser = hasGoogleProvider(user)
-                const passwordNotLinked = isGoogleUser && !hasPasswordProvider(user)
-                setNeedsPasswordSetup(passwordNotLinked)
+                // Disable forced password linking for Google users to keep signup seamless
+                setNeedsPasswordSetup(false)
 
                 // Only fetch profile if user is in a usable state
                 if (!emailNotVerified) {
@@ -59,7 +57,7 @@ export function AuthProvider({ children }) {
         if (!user) return
         const isEmailPasswordUser = hasPasswordProvider(user) && !hasGoogleProvider(user)
         setNeedsEmailVerification(isEmailPasswordUser && !user.emailVerified)
-        setNeedsPasswordSetup(hasGoogleProvider(user) && !hasPasswordProvider(user))
+        setNeedsPasswordSetup(false)
     }
 
     return (

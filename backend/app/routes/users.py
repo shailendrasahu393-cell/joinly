@@ -47,7 +47,10 @@ def get_user_by_id(user_id: str, current_user: dict = Depends(get_current_user))
 def update_my_profile(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
     # Block unverified email/password users from completing onboarding
     sign_in_provider = current_user.get("firebase", {}).get("sign_in_provider", "")
-    if sign_in_provider == "password" and not current_user.get("email_verified", False):
+    identities = current_user.get("firebase", {}).get("identities", {})
+    has_google = "google.com" in identities
+    
+    if sign_in_provider == "password" and not has_google and not current_user.get("email_verified", False):
         raise HTTPException(status_code=403, detail="Please verify your email before completing your profile.")
 
     if user_update.dateOfBirth is not None and not UserService.is_at_least_17(user_update.dateOfBirth):
