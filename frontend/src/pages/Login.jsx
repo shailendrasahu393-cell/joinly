@@ -20,9 +20,14 @@ export default function Login() {
         if (!email || !password) return toast.error('Please fill in all fields.')
         setLoading(true)
         try {
-            await logIn(email, password)
-            toast.success('Welcome back!')
-            navigate('/home')
+            const result = await logIn(email, password)
+            if (result.user && !result.user.emailVerified) {
+                toast.info('Please verify your email to continue.')
+                navigate('/verify-email')
+            } else {
+                toast.success('Welcome back!')
+                navigate('/home')
+            }
         } catch (err) {
             const msg = err.code === 'auth/invalid-credential'
                 ? 'Invalid email or password.'
@@ -34,6 +39,7 @@ export default function Login() {
             setLoading(false)
         }
     }
+
 
     const handleReset = async (e) => {
         e.preventDefault()

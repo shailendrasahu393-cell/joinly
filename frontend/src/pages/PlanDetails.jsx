@@ -10,7 +10,8 @@ import EmptyState from '../components/EmptyState'
 import JoinRequestCard from '../components/JoinRequestCard'
 import Modal from '../components/Modal'
 import { getCategoryById, formatDate, formatTime, calculateAge } from '../utils/constants'
-import { MapPin, Clock, Users, Calendar, AlertTriangle, Share2, MoreVertical, ArrowRight } from 'lucide-react'
+import { getGoogleMapsUrl, getFullLocationString } from '../utils/maps'
+import { MapPin, Clock, Users, Calendar, AlertTriangle, Share2, MoreVertical, ArrowRight, ExternalLink } from 'lucide-react'
 
 export default function PlanDetails() {
     const { planId } = useParams()
@@ -210,12 +211,29 @@ export default function PlanDetails() {
                             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 <MapPin size={18} style={{ color: 'var(--color-primary)' }} />
                             </div>
-                            <div>
-                                <div style={{ fontWeight: 600, fontSize: 16 }}>{plan.locationName}</div>
-                                <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                                    {[plan.area, plan.city].filter(Boolean).join(', ')}
+                            {getGoogleMapsUrl(getFullLocationString(plan)) ? (
+                                <a 
+                                    href={getGoogleMapsUrl(getFullLocationString(plan))}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}
+                                    className="plan-details-location-link"
+                                >
+                                    <div style={{ fontWeight: 600, fontSize: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        {plan.locationName} <ExternalLink size={14} className="external-icon" style={{ color: 'var(--color-text-tertiary)' }} />
+                                    </div>
+                                    <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                                        {[plan.area, plan.city].filter(Boolean).join(', ')}
+                                    </div>
+                                </a>
+                            ) : (
+                                <div>
+                                    <div style={{ fontWeight: 600, fontSize: 16 }}>{plan.locationName}</div>
+                                    <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                                        {[plan.area, plan.city].filter(Boolean).join(', ')}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -342,6 +360,13 @@ export default function PlanDetails() {
                 <style>{`
                     @media (min-width: 1024px) {
                         .plan-action-bar { bottom: 0 !important; }
+                    }
+                    .plan-details-location-link:hover .external-icon {
+                        color: var(--color-primary) !important;
+                    }
+                    .plan-details-location-link:hover div:first-child {
+                        text-decoration: underline;
+                        color: var(--color-primary);
                     }
                 `}</style>
             </div>

@@ -2,8 +2,10 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
+    sendEmailVerification,
     EmailAuthProvider,
     reauthenticateWithCredential,
+    linkWithCredential,
     updatePassword,
     GoogleAuthProvider,
     signInWithPopup,
@@ -82,4 +84,47 @@ export const getIdToken = async () => {
     const user = auth?.currentUser
     if (!user) return null
     return user.getIdToken()
+}
+
+// --- New helpers for email verification & password linking ---
+
+export const sendVerificationEmail = (user) => {
+    const actionCodeSettings = {
+        url: window.location.origin + '/verify-email',
+        handleCodeInApp: false,
+    }
+    return sendEmailVerification(user, actionCodeSettings)
+}
+
+export const reloadUser = async () => {
+    const user = auth?.currentUser
+    if (!user) return null
+    await user.reload()
+    return auth.currentUser
+}
+
+export const hasPasswordProvider = (user) => {
+    if (!user) return false
+    return user.providerData.some((p) => p.providerId === 'password')
+}
+
+export const hasGoogleProvider = (user) => {
+    if (!user) return false
+    return user.providerData.some((p) => p.providerId === 'google.com')
+}
+
+export const linkPasswordToAccount = async (password) => {
+    const firebaseAuth = requireFirebase()
+    const user = firebaseAuth.currentUser
+    if (!user?.email) throw new Error('No signed-in user found.')
+    const credential = EmailAuthProvider.credential(user.email, password)
+    return linkWithCredential(user, credential)
+}
+
+export const reauthenticateUser = async (password) => {
+    const firebaseAuth = requireFirebase()
+    const user = firebaseAuth.currentUser
+    if (!user?.email) throw new Error('No signed-in user found.')
+    const credential = EmailAuthProvider.credential(user.email, password)
+    return reauthenticateWithCredential(user, credential)
 }

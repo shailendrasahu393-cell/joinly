@@ -1,8 +1,8 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-export default function ProtectedRoute({ children }) {
-    const { currentUser, loading } = useAuth()
+export default function ProtectedRoute({ children, allowUnverified, allowWithoutPassword }) {
+    const { currentUser, loading, needsEmailVerification, needsPasswordSetup } = useAuth()
 
     if (loading) {
         return (
@@ -14,6 +14,14 @@ export default function ProtectedRoute({ children }) {
 
     if (!currentUser) {
         return <Navigate to="/login" replace />
+    }
+
+    if (needsEmailVerification && !allowUnverified) {
+        return <Navigate to="/verify-email" replace />
+    }
+
+    if (needsPasswordSetup && !allowWithoutPassword) {
+        return <Navigate to="/create-password" replace />
     }
 
     return children

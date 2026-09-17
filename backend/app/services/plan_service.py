@@ -113,13 +113,15 @@ class PlanService:
         else:
             query = query.where('status', 'in', ['active', 'closed'])
             
-        if city:
-            query = query.where('city', '==', city)
         if category:
             query = query.where('category', '==', category)
             
         docs = query.stream()
         results = [doc.to_dict() for doc in docs]
+        
+        if city:
+            city_lower = city.lower()
+            results = [r for r in results if str(r.get('city', '')).lower() == city_lower]
         
         # Simple text search fallback for MVP
         if q:

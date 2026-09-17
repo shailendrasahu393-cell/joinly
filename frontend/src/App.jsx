@@ -9,6 +9,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import VerifyEmail from './pages/VerifyEmail'
+import CreatePassword from './pages/CreatePassword'
 import Onboarding from './pages/Onboarding'
 import Home from './pages/Home'
 import Discover from './pages/Discover'
@@ -52,6 +54,10 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/about" element={<About />} />
+
+                {/* Auth intermediate screens */}
+                <Route path="/verify-email" element={<ProtectedRoute allowUnverified allowWithoutPassword><VerifyEmail /></ProtectedRoute>} />
+                <Route path="/create-password" element={<ProtectedRoute allowUnverified allowWithoutPassword><CreatePassword /></ProtectedRoute>} />
 
                 {/* Protected Routes */}
                 <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />

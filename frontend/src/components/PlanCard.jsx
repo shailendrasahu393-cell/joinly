@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, Users, Trash2 } from 'lucide-react'
+import { MapPin, Clock, Users, Trash2, ExternalLink } from 'lucide-react'
 import UserAvatar from './UserAvatar'
 import { getCategoryById, formatDate, formatTime } from '../utils/constants'
+import { getGoogleMapsUrl, getFullLocationString } from '../utils/maps'
 
 export default function PlanCard({ plan, showHost = true, onDelete }) {
     const navigate = useNavigate()
@@ -31,7 +32,20 @@ export default function PlanCard({ plan, showHost = true, onDelete }) {
             <div className="plan-meta">
                 <div className="plan-meta-item">
                     <MapPin size={14} />
-                    <span>{[plan.locationName, plan.area, plan.city].filter(Boolean).join(' · ')}</span>
+                    {getGoogleMapsUrl(getFullLocationString(plan)) ? (
+                        <a
+                            href={getGoogleMapsUrl(getFullLocationString(plan))}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="location-link"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Open in Google Maps"
+                        >
+                            {[plan.locationName, plan.area, plan.city].filter(Boolean).join(' · ')} <ExternalLink size={12} className="external-icon" />
+                        </a>
+                    ) : (
+                        <span>{[plan.locationName, plan.area, plan.city].filter(Boolean).join(' · ')}</span>
+                    )}
                 </div>
                 <div className="plan-meta-item">
                     <Clock size={14} />
@@ -108,6 +122,23 @@ export default function PlanCard({ plan, showHost = true, onDelete }) {
           gap: 6px;
           font-size: 13px;
           color: var(--color-text-secondary);
+        }
+
+        .location-link {
+          color: inherit;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .location-link:hover {
+          text-decoration: underline;
+          color: var(--color-primary);
+        }
+
+        .location-link:hover .external-icon {
+          color: var(--color-primary);
         }
 
         .spots-left { color: var(--color-primary); font-weight: 500; }

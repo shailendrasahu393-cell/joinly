@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import api from '../services/api'
+import { auth } from '../services/firebase'
 import { INTEREST_OPTIONS, GENDER_OPTIONS } from '../utils/constants'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
 import AvatarPicker from '../components/AvatarPicker'
@@ -19,6 +20,22 @@ export default function Onboarding() {
         fullName: '', username: '', dateOfBirth: '', gender: '', profileImage: '',
         bio: '', city: 'Kanpur', area: '', interests: [],
     })
+
+    // Force refresh token on mount to ensure backend knows email is verified
+    useEffect(() => {
+        const refreshToken = async () => {
+            const user = auth?.currentUser
+            if (user) {
+                try {
+                    await user.getIdToken(true)
+                } catch (e) {
+                    console.error("Failed to refresh token", e)
+                }
+            }
+        }
+        refreshToken()
+    }, [])
+
     const maxBirthDate = (() => {
         const date = new Date()
         date.setFullYear(date.getFullYear() - 17)

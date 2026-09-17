@@ -33,13 +33,3 @@ api.interceptors.response.use(
 )
 
 export default api
-
-export const sendSignupOtp = async (email) => {
-    const response = await api.post('/auth/send-signup-otp', { email })
-    return response.data
-}
-
-export const verifySignupOtp = async (email, password, otp) => {
-    const response = await api.post('/auth/verify-signup-otp', { email, password, otp })
-    return response.data
-}

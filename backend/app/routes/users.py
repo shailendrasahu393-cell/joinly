@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from ..dependencies.auth import get_current_user
 from ..schemas.user import UserUpdate, User
 from ..services.user_service import UserService
+from ..services.account_service import AccountService
 
 router = APIRouter()
 
@@ -44,6 +45,11 @@ def get_user_by_id(user_id: str, current_user: dict = Depends(get_current_user))
 
 @router.patch("/me")
 def update_my_profile(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
+    # Block unverified email/password users from completing onboarding
+    sign_in_provider = current_user.get("firebase", {}).get("sign_in_provider", "")
+    if sign_in_provider == "password" and not current_user.get("email_verified", False):
+        raise HTTPException(status_code=403, detail="Please verify your email before completing your profile.")
+
     if user_update.dateOfBirth is not None and not UserService.is_at_least_17(user_update.dateOfBirth):
         raise HTTPException(status_code=400, detail="You must be at least 17 years old to complete your profile")
 
@@ -85,3 +91,14 @@ def upload_profile_image(file: UploadFile = File(...), current_user: dict = Depe
     UserService.create_or_update_user(current_user["uid"], current_user.get("email", ""), UserUpdate(profileImage=mock_url))
     
     return {"profileImage": mock_url}
+
+@router.delete("/me/account")
+def delete_my_account(current_user: dict = Depends(get_current_user)):
+    """Delete the current user's account and ALL associated JOINLY data."""
+    uid = current_user["uid"]
+    try:
+        AccountService.delete_account(uid)
+        return {"success": True}
+    except Exception as e:
+        print(f"Account deletion error for {uid}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete account. Please try again.")
